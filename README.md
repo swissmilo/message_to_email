@@ -158,15 +158,15 @@ npm run cli -- contacts
 - **Lightning-Fast Lookups**: Contact resolution takes 0ms after caching
 - **30-Day Cache**: Cache stays fresh for 30 days, no daily re-downloading
 - **Graceful Fallbacks**: Works without cache using formatted phone numbers
-- **Real Names**: "Lydia Yale" instead of "+1 (917) 697-2702"
+- **Real Names**: "Lydia" instead of "+1 (917) 123-4567"
 
 **Contact Resolution Features:**
 - **macOS Contacts Integration**: Automatically lookup names from your Contacts app  
 - **Manual Mappings**: Map phone numbers/emails to display names (as backup)
 - **Auto +1 Country Code**: Automatically adds +1 to 10-digit US/Canada numbers
-- **Smart Phone Formatting**: Pretty formatting like "+1 (415) 555-1234"
+- **Smart Phone Formatting**: Pretty formatting like "+1 (415) 555-5555"
 - **Input Normalization**: CLI auto-formats phone input (e.g., "4155551234" → "+14155551234")
-- **Batch Processing**: Downloads contacts in batches of 10 for reliability
+- **Batch Processing**: Downloads contacts in batches of 10 for reliability (1000 will take about 10min)
 
 ### Development
 
@@ -291,7 +291,7 @@ The app creates smart email subjects that always include phone numbers for easy 
 - `Re: iMessage: +1 (415) 555-1234`
 
 **Benefits for Gmail filtering:**
-- Set up filters based on phone numbers: `(+14156300688)`
+- Set up filters based on phone numbers: `(+14156305555)`
 - Easily identify conversation participants
 - Professional appearance with contact names
 
@@ -311,7 +311,7 @@ The system is now production-ready with:
 
 1. **Setup**: Grant Full Disk Access, install dependencies, configure Gmail
 2. **Sync Contacts**: `npm run cli -- contacts --sync` (one-time, ~5 minutes)
-3. **Add Conversations**: `npm run cli -- sync --add "+15551234567"`
+3. **Add Conversations**: `npm run cli -- sync --add "+15551234555"`
 4. **Start Service**: `npm run cli -- service` (runs continuously)
 
 🎯 **Result**: New iMessages automatically appear in your Gmail inbox with proper contact names!

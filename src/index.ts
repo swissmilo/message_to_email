@@ -7,6 +7,7 @@ import { syncCommand } from './commands/sync';
 import { serviceCommand } from './commands/service';
 import { emailCommand } from './commands/email';
 import { contactsCommand } from './commands/contacts';
+import { messagesCommand } from './commands/messages';
 
 const program = new Command();
 
@@ -32,6 +33,7 @@ program.addCommand(syncCommand);
 program.addCommand(serviceCommand);
 program.addCommand(emailCommand);
 program.addCommand(contactsCommand);
+program.addCommand(messagesCommand);
 
 // Parse command line arguments
 program.parse(process.argv);

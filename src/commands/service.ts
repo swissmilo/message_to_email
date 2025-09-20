@@ -207,22 +207,22 @@ class SyncService {
 
   async syncConversation(conv: any): Promise<number> {
     try {
-      // Add buffer time to catch very recent messages (5 seconds ago)
-      const now = new Date();
-      const endDate = new Date(now.getTime() - 5000); // 5 seconds buffer
+      // Use a wider time window to ensure we don't miss recent messages
+      // imessage-exporter seems to have issues with very recent timestamps
       const startDate = conv.lastSyncDate || new Date(Date.now() - 24 * 60 * 60 * 1000);
       
       this.log('debug', `🔍 Syncing ${conv.displayName}:`);
       this.log('debug', `   Last sync: ${conv.lastSyncDate ? conv.lastSyncDate.toISOString() : 'Never'}`);
-      this.log('debug', `   Export range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+      this.log('debug', `   Export range: ${startDate.toISOString()} to NOW (no end limit)`);
       
       // Export recent messages for this specific conversation
+      // Don't use endDate to avoid missing very recent messages
       const tempDir = `temp_sync_${Date.now()}`;
       const exportOptions = {
         format: 'html' as const,
         outputDir: tempDir,
         startDate,
-        endDate,
+        // Remove endDate to get all messages up to now
         noAttachments: true,
         contacts: conv.participants, // Filter to this conversation only
       };
@@ -255,40 +255,58 @@ class SyncService {
               const newMessages = messages.filter(msg => {
                 const isNew = !conv.lastSyncDate || msg.date > conv.lastSyncDate;
                 if (this.verbose) {
-                  this.log('debug', `   Message from ${msg.date.toISOString()}: ${isNew ? 'NEW' : 'OLD'} - "${msg.text.substring(0, 30)}${msg.text.length > 30 ? '...' : ''}"`);
+                  const direction = msg.isFromMe ? '➡️ SENT' : '⬅️ RECEIVED';
+                  this.log('debug', `   Message from ${msg.date.toISOString()}: ${isNew ? 'NEW' : 'OLD'} ${direction} - "${msg.text.substring(0, 30)}${msg.text.length > 30 ? '...' : ''}"`);
                 }
                 return isNew;
               });
               
-              this.log('debug', `   Filtered to ${newMessages.length} new message(s)`);
+              // Separate sent vs received messages for processing
+              const newReceivedMessages = newMessages.filter(msg => !msg.isFromMe);
+              const newSentMessages = newMessages.filter(msg => msg.isFromMe);
               
+              this.log('debug', `   Filtered to ${newMessages.length} new message(s) (${newReceivedMessages.length} received, ${newSentMessages.length} sent)`);
+              
+              // Log all new messages for visibility
               if (newMessages.length > 0) {
-                if (this.gmailService) {
-                  // Send emails for new messages
-                  const emails = this.gmailService.convertConversationToEmail(
-                    newMessages,
-                    conv.displayName,
-                    conv.chatIdentifier
-                  );
-                  
-                  for (const email of emails) {
-                    try {
-                      await this.gmailService.sendEmail(email);
-                      this.log('info', `📧 Email sent for message from ${conv.displayName}`);
-                    } catch (emailError) {
-                      this.log('error', `❌ Failed to send email: ${emailError}`);
-                    }
-                  }
-                } else {
-                  // Simulation mode
-                  this.log('info', `📧 [SIMULATION] Would send ${newMessages.length} email(s) from ${conv.displayName}`);
-                  for (const msg of newMessages) {
-                    this.log('debug', `📧 [SIMULATION] Message: "${msg.text.substring(0, 50)}${msg.text.length > 50 ? '...' : ''}"`);
+                if (newSentMessages.length > 0) {
+                  this.log('info', `📤 You sent ${newSentMessages.length} message(s) to ${conv.displayName}`);
+                  if (this.verbose) {
+                    newSentMessages.forEach(msg => {
+                      this.log('debug', `   📤 [${msg.date.toLocaleTimeString()}] You: "${msg.text.substring(0, 60)}${msg.text.length > 60 ? '...' : ''}"`);
+                    });
                   }
                 }
                 
-                totalNewMessages += newMessages.length;
+                // Only send emails for received messages
+                if (newReceivedMessages.length > 0) {
+                  if (this.gmailService) {
+                    // Send emails for received messages only
+                    const emails = this.gmailService.convertConversationToEmail(
+                      newReceivedMessages,
+                      conv.displayName,
+                      conv.chatIdentifier
+                    );
+                    
+                    for (const email of emails) {
+                      try {
+                        await this.gmailService.sendEmail(email);
+                        this.log('info', `📧 Email sent for message from ${conv.displayName}`);
+                      } catch (emailError) {
+                        this.log('error', `❌ Failed to send email: ${emailError}`);
+                      }
+                    }
+                  } else {
+                    // Simulation mode
+                    this.log('info', `📧 [SIMULATION] Would send ${newReceivedMessages.length} email(s) from ${conv.displayName}`);
+                    for (const msg of newReceivedMessages) {
+                      this.log('debug', `📧 [SIMULATION] Message: "${msg.text.substring(0, 50)}${msg.text.length > 50 ? '...' : ''}"`);
+                    }
+                  }
+                }
               }
+                
+              totalNewMessages += newMessages.length;
             }
           }
         }

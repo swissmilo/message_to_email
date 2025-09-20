@@ -128,6 +128,31 @@ npm run cli service
 npm run cli service --verbose
 ```
 
+### Contact Management
+
+```bash
+# View all contact mappings
+npm run cli contacts --list
+
+# Add manual contact mapping (will prompt for name)
+npm run cli contacts --add "+14155551234"
+
+# Remove contact mapping
+npm run cli contacts --remove "+14155551234"
+
+# Test contact resolution
+npm run cli contacts --test "+14155551234"
+
+# Interactive contact menu
+npm run cli contacts
+```
+
+**Contact Resolution Features:**
+- **Manual Mappings**: Map phone numbers/emails to display names
+- **macOS Contacts Integration**: Automatically lookup names from your Contacts app  
+- **Formatted Display**: Pretty phone number formatting when no contact found
+- **Bulk Resolution**: Test resolution for all participants in recent conversations
+
 ### Development
 
 ```bash
@@ -160,6 +185,8 @@ npm run build
 - ✅ **Environment variable configuration**
 - ✅ **Email testing and validation**
 - ✅ **Real message-to-email conversion**
+- ✅ **Contact name resolution with manual mappings**
+- ✅ **macOS Contacts app integration**
 
 ## Project Structure
 
@@ -171,17 +198,20 @@ text_to_email/
 │   │   ├── list.ts        # List command implementation
 │   │   ├── sync.ts        # Interactive sync command
 │   │   ├── service.ts     # Background service command
-│   │   └── email.ts       # Email configuration command
+│   │   ├── email.ts       # Email configuration command
+│   │   └── contacts.ts    # Contact management command
 │   ├── services/
 │   │   ├── MessageExporter.ts  # Wrapper for imessage-exporter
 │   │   ├── ConfigManager.ts    # Configuration management
-│   │   └── GmailService.ts     # Gmail/email integration
+│   │   ├── GmailService.ts     # Gmail/email integration
+│   │   └── ContactResolver.ts  # Contact name resolution
 │   ├── types/
 │   │   ├── index.ts       # Core TypeScript interfaces
 │   │   └── config.ts      # Configuration type definitions
 │   └── utils/
 │       └── permissions.ts  # Permission checking utilities
 ├── imessage-sync-config.json  # Configuration file (auto-generated)
+├── contacts-config.json   # Contact mappings (auto-generated)
 ├── .env                   # Environment variables (create from env.example)
 ├── env.example           # Environment variable template
 ├── package.json
@@ -197,6 +227,20 @@ This file is automatically created in the app directory and contains:
 - **Sync settings**: Interval, auto-sync enabled/disabled
 - **Email configuration**: Sender name, recipient overrides
 - **Export settings**: Format, attachments, message limits
+
+### `contacts-config.json`
+This file is automatically created when you add manual contact mappings:
+- **Manual Mappings**: Phone numbers/emails mapped to display names
+- **Automatic Creation**: Created when you use `contacts --add` command
+- **JSON Format**: Simple key-value pairs for easy editing
+
+Example:
+```json
+{
+  "+14155551234": "John Smith",
+  "jane@example.com": "Jane Doe"
+}
+```
 
 ### `.env`
 Environment variables for Gmail authentication (create from `env.example`):

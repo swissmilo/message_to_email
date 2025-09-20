@@ -2,13 +2,16 @@ import { spawn } from 'child_process';
 import { parse } from 'node-html-parser';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { ContactResolver } from './ContactResolver';
 import type { ExportOptions, ExportResult, Conversation, ParsedMessages, Message } from '../types';
 
 export class MessageExporter {
   private binaryPath: string;
+  private contactResolver: ContactResolver;
 
   constructor(binaryPath: string = 'imessage-exporter') {
     this.binaryPath = binaryPath;
+    this.contactResolver = new ContactResolver();
   }
 
   /**
@@ -160,9 +163,10 @@ export class MessageExporter {
       return null;
     }
 
+    const displayName = await this.getDisplayName(chatIdentifier, participants);
     return {
       chatIdentifier,
-      displayName: this.getDisplayName(chatIdentifier, participants),
+      displayName,
       participants,
       lastMessageDate,
       messageCount: messages.length,
@@ -382,24 +386,48 @@ export class MessageExporter {
   /**
    * Generate a display name for a conversation
    */
-  private getDisplayName(chatId: string, participants: string[]): string {
+  private async getDisplayName(chatId: string, participants: string[]): Promise<string> {
     if (participants.length === 0) {
       return 'Unknown';
     }
     
     if (participants.length === 1) {
-      // Single participant - try to format phone number or email nicely
+      // Single participant - resolve contact name
       const participant = participants[0];
-      if (participant.includes('@')) {
-        return participant; // Email address
-      } else if (participant.match(/^\+?\d+$/)) {
-        // Phone number - format it nicely
-        return this.formatPhoneNumber(participant);
+      try {
+        const contactInfo = await this.contactResolver.resolveContact(participant);
+        return contactInfo.displayName;
+      } catch (error) {
+        // Fallback to formatted identifier
+        if (participant.includes('@')) {
+          return participant; // Email address
+        } else if (participant.match(/^\+?\d+$/)) {
+          return this.formatPhoneNumber(participant);
+        }
+        return participant;
       }
-      return participant;
     }
     
-    // Group conversation
+    // Group conversation - try to resolve first few participants
+    if (participants.length <= 3) {
+      try {
+        const resolvedNames = await Promise.all(
+          participants.slice(0, 3).map(async (p) => {
+            try {
+              const contact = await this.contactResolver.resolveContact(p);
+              return contact.displayName;
+            } catch {
+              return this.formatPhoneNumber(p);
+            }
+          })
+        );
+        return resolvedNames.join(', ');
+      } catch (error) {
+        // Fallback to generic group name
+      }
+    }
+    
+    // Fallback for large groups
     return `Group (${participants.length} people)`;
   }
 

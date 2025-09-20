@@ -80,71 +80,71 @@ npm run cli email --test
 
 ```bash
 # List recent conversations
-npm run cli list
+npm run cli -- list
 
 # Show more conversations
-npm run cli list --limit 50
+npm run cli -- list --limit 50
 
 # Include group chats
-npm run cli list --groups
+npm run cli -- list --groups
 ```
 
 ### Sync Management
 
 ```bash
 # Interactive sync setup
-npm run cli sync
+npm run cli -- sync
 
 # View sync status
-npm run cli sync --status
+npm run cli -- sync --status
 
 # Add conversation to tracking
-npm run cli sync --add "+15551234567"
+npm run cli -- sync --add "+15551234567"
 
 # Remove conversation from tracking
-npm run cli sync --remove "+15551234567"
+npm run cli -- sync --remove "+15551234567"
 ```
 
 ### Email Configuration
 
 ```bash
 # Configure Gmail settings (interactive)
-npm run cli email
+npm run cli -- email
 
 # Configure email settings
-npm run cli email --config
+npm run cli -- email --config
 
 # Send test email
-npm run cli email --test
+npm run cli -- email --test
 ```
 
 ### Background Service
 
 ```bash
 # Run sync service (checks every minute)
-npm run cli service
+npm run cli -- service
 
 # Run with verbose logging
-npm run cli service --verbose
+npm run cli -- service --verbose
 ```
 
 ### Contact Management
 
 ```bash
 # View all contact mappings
-npm run cli contacts --list
+npm run cli -- contacts --list
 
 # Add manual contact mapping (will prompt for name)
-npm run cli contacts --add "+14155551234"
+npm run cli -- contacts --add "+14155551234"
 
 # Remove contact mapping
-npm run cli contacts --remove "+14155551234"
+npm run cli -- contacts --remove "+14155551234"
 
 # Test contact resolution
-npm run cli contacts --test "+14155551234"
+npm run cli -- contacts --test "+14155551234"
 
 # Interactive contact menu
-npm run cli contacts
+npm run cli -- contacts
 ```
 
 **Contact Resolution Features:**
@@ -159,7 +159,7 @@ npm run cli contacts
 
 ```bash
 # Run in development mode
-npm run dev list
+npm run dev -- list
 
 # Build the project
 npm run build

@@ -295,16 +295,6 @@ The app creates smart email subjects that always include phone numbers for easy 
 - Easily identify conversation participants
 - Professional appearance with contact names
 
-## Next Steps
-
-The following features could be added in future development:
-
-1. **OAuth2 Authentication** - More secure Gmail authentication option
-2. **Web Dashboard** - Browser-based interface for configuration
-3. **Message Search** - Search within cached message history
-4. **Attachment Support** - Forward images and files via email
-5. **Multiple Email Accounts** - Support for different Gmail accounts
-
 ## Current Status
 
 ### 🎉 Fully Functional iMessage to Email Sync!

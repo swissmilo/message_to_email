@@ -26,26 +26,30 @@ export class ContactResolver {
       return this.contactCache.get(identifier)!;
     }
 
-    // Check manual mappings
+    // Try to resolve via macOS Contacts app first (real names are better than manual mappings)
+    try {
+      const contactInfo = await this.resolveViaContacts(identifier);
+      if (contactInfo && contactInfo.displayName && 
+          !contactInfo.displayName.match(/^\+?\d/) && 
+          !contactInfo.displayName.includes('@')) {
+        // This looks like a real name, not a phone number or email
+        this.contactCache.set(identifier, contactInfo);
+        return contactInfo;
+      }
+    } catch (error) {
+      // Continue to manual mappings
+    }
+
+    // Check manual mappings as backup
     if (this.manualContacts.has(identifier)) {
+      const manualName = this.manualContacts.get(identifier)!;
       const contactInfo: ContactInfo = {
-        displayName: this.manualContacts.get(identifier)!,
+        displayName: manualName,
         phoneNumber: identifier.includes('@') ? undefined : identifier,
         email: identifier.includes('@') ? identifier : undefined,
       };
       this.contactCache.set(identifier, contactInfo);
       return contactInfo;
-    }
-
-    // Try to resolve via macOS Contacts app
-    try {
-      const contactInfo = await this.resolveViaContacts(identifier);
-      if (contactInfo) {
-        this.contactCache.set(identifier, contactInfo);
-        return contactInfo;
-      }
-    } catch (error) {
-      // Fallback to formatted identifier
     }
 
     // Fallback: return formatted identifier

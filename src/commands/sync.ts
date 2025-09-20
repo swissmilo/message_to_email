@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { MessageExporter } from '../services/MessageExporter';
 import { ConfigManager } from '../services/ConfigManager';
+import { ContactResolver } from '../services/ContactResolver';
 import { checkFullDiskAccess, displayPermissionInstructions, checkImessageExporterInstalled, displayInstallationInstructions } from '../utils/permissions';
 import type { Conversation } from '../types';
 import type { TrackedConversation } from '../types/config';
@@ -227,23 +228,42 @@ async function addManualConversation(configManager: ConfigManager, exporter: Mes
     },
   ]);
 
+  // Automatically resolve contact name if available
+  const contactResolver = new ContactResolver();
+  let suggestedName = identifier.trim();
+  
+  try {
+    const contactInfo = await contactResolver.resolveContact(identifier.trim());
+    suggestedName = contactInfo.displayName;
+    
+    // Show what we found
+    if (contactInfo.displayName && 
+        contactInfo.displayName !== identifier.trim() && 
+        !contactInfo.displayName.includes(identifier) &&
+        !identifier.includes(contactInfo.displayName)) {
+      console.log(chalk.gray(`📇 Found contact name: ${contactInfo.displayName}`));
+    }
+  } catch (error) {
+    // If contact resolution fails, just use the identifier
+  }
+
   const { displayName } = await inquirer.prompt([
     {
       type: 'input',
       name: 'displayName',
-      message: 'Enter a display name (optional):',
-      default: identifier,
+      message: 'Enter a display name (press Enter to use suggested):',
+      default: suggestedName,
     },
   ]);
 
   await configManager.addTrackedConversation({
     chatIdentifier: identifier.trim(),
-    displayName: displayName.trim() || identifier.trim(),
+    displayName: displayName.trim() || suggestedName,
     participants: [identifier.trim()],
     isGroup: false,
   });
 
-  console.log(chalk.green(`✅ Added "${displayName}" to tracking.`));
+  console.log(chalk.green(`✅ Added "${displayName.trim() || suggestedName}" to tracking.`));
 }
 
 async function removeConversationsInteractive(configManager: ConfigManager) {
@@ -345,14 +365,35 @@ async function editConfigFile(configManager: ConfigManager) {
 }
 
 async function addConversationByIdentifier(configManager: ConfigManager, exporter: MessageExporter, identifier: string) {
+  // Automatically resolve contact name if available
+  const contactResolver = new ContactResolver();
+  let displayName = identifier;
+  
+  try {
+    const contactInfo = await contactResolver.resolveContact(identifier);
+    // Use resolved name if it's different from the raw identifier and not just formatted
+    if (contactInfo.displayName && 
+        contactInfo.displayName !== identifier && 
+        !contactInfo.displayName.includes(identifier) &&
+        !identifier.includes(contactInfo.displayName)) {
+      displayName = contactInfo.displayName;
+      console.log(chalk.gray(`📇 Found contact name: ${displayName}`));
+    } else {
+      displayName = contactInfo.displayName; // Use the formatted version
+    }
+  } catch (error) {
+    // If contact resolution fails, fall back to identifier
+    console.log(chalk.gray(`📇 No contact found, using: ${identifier}`));
+  }
+
   await configManager.addTrackedConversation({
     chatIdentifier: identifier,
-    displayName: identifier,
+    displayName,
     participants: [identifier],
     isGroup: false,
   });
   
-  console.log(chalk.green(`✅ Added "${identifier}" to tracking.`));
+  console.log(chalk.green(`✅ Added "${displayName}" to tracking.`));
 }
 
 async function removeConversation(configManager: ConfigManager, chatId: string) {

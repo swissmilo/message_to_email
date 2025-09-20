@@ -160,7 +160,14 @@ export class ConfigManager {
    * Convert date strings back to Date objects
    */
   private deserializeConfig(rawConfig: any): AppConfig {
-    const config: AppConfig = { ...rawConfig };
+    const defaultConfig = this.getDefaultConfig();
+    const config: AppConfig = { 
+      ...defaultConfig,
+      ...rawConfig,
+      sync: { ...defaultConfig.sync, ...rawConfig.sync },
+      email: { ...defaultConfig.email, ...rawConfig.email },
+      export: { ...defaultConfig.export, ...rawConfig.export },
+    };
     
     // Convert date strings to Date objects
     if (config.sync.lastGlobalSync) {

@@ -438,14 +438,21 @@ export class MessageExporter {
     // Remove non-digits
     const digits = phone.replace(/\D/g, '');
     
-    // Format US phone numbers
+    // Auto-add +1 for 10-digit numbers (assume US/Canada)
     if (digits.length === 10) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-    } else if (digits.length === 11 && digits[0] === '1') {
+      return `+1 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    } 
+    // Format 11-digit numbers starting with 1
+    else if (digits.length === 11 && digits[0] === '1') {
       return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
     }
+    // For other lengths, try to format but preserve original structure
+    else if (digits.length > 10) {
+      // International number - add + if missing
+      return phone.startsWith('+') ? phone : `+${phone}`;
+    }
     
-    // Return original if we can't format it
+    // Fallback for short numbers or non-standard formats
     return phone;
   }
 

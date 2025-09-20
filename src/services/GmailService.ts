@@ -118,9 +118,10 @@ export class GmailService {
       const messageId = this.generateMessageId(message.guid, conversationId);
       allMessageIds.push(messageId);
 
+      // Create subject with phone number always included for filtering
       const subject = i === 0 
-        ? `iMessage: ${conversationDisplayName}`
-        : `Re: iMessage: ${conversationDisplayName}`;
+        ? this.createEmailSubject(conversationDisplayName, conversationId)
+        : `Re: ${this.createEmailSubject(conversationDisplayName, conversationId)}`;
 
       const htmlBody = this.formatMessageAsHTML(message, conversationDisplayName);
       const textBody = this.formatMessageAsText(message, conversationDisplayName);
@@ -140,6 +141,53 @@ export class GmailService {
     }
 
     return emails;
+  }
+
+  /**
+   * Create email subject with phone number for filtering
+   */
+  private createEmailSubject(conversationDisplayName: string, conversationId: string): string {
+    // Extract the raw identifier (phone number or email)
+    const rawIdentifier = conversationId;
+    
+    // If the display name is different from the raw identifier, include both
+    if (conversationDisplayName !== rawIdentifier && 
+        !conversationDisplayName.includes(rawIdentifier) &&
+        !rawIdentifier.includes(conversationDisplayName)) {
+      
+      // Check if it's a phone number or email
+      if (rawIdentifier.includes('@')) {
+        return `iMessage: ${conversationDisplayName} (${rawIdentifier})`;
+      } else {
+        // It's a phone number - format it nicely
+        const formattedPhone = this.formatPhoneForSubject(rawIdentifier);
+        return `iMessage: ${conversationDisplayName} (${formattedPhone})`;
+      }
+    }
+    
+    // If display name is the same as identifier, just use it
+    return `iMessage: ${conversationDisplayName}`;
+  }
+
+  /**
+   * Format phone number for email subject
+   */
+  private formatPhoneForSubject(phone: string): string {
+    // Remove non-digits
+    const digits = phone.replace(/\D/g, '');
+    
+    // Add +1 if no country code and it's a 10-digit US number
+    if (digits.length === 10) {
+      return `+1${digits}`;
+    }
+    
+    // If it already starts with 1 and is 11 digits, add +
+    if (digits.length === 11 && digits[0] === '1') {
+      return `+${digits}`;
+    }
+    
+    // Return as-is with + if it doesn't already have it
+    return phone.startsWith('+') ? phone : `+${phone}`;
   }
 
   /**

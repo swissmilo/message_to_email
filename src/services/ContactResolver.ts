@@ -112,7 +112,7 @@ export class ContactResolver {
         `
         : `
           tell application "Contacts"
-            set phoneToFind to "${identifier.replace(/\D/g, '')}"
+            set phoneToFind to "${this.normalizePhoneForSearch(identifier)}"
             set matchingPeople to (every person whose phone contains phoneToFind)
             if length of matchingPeople > 0 then
               set firstPerson to item 1 of matchingPeople
@@ -165,16 +165,54 @@ export class ContactResolver {
       return identifier; // Email addresses are already readable
     }
     
-    // Format phone numbers
+    // Format phone numbers with auto +1 country code
+    return this.formatPhoneNumber(identifier);
+  }
+
+  /**
+   * Normalize phone number for search in Contacts app
+   */
+  private normalizePhoneForSearch(identifier: string): string {
     const digits = identifier.replace(/\D/g, '');
     
+    // For 10-digit numbers, search with just the digits (Contacts might have different formats)
     if (digits.length === 10) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-    } else if (digits.length === 11 && digits[0] === '1') {
-      return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+      return digits;
     }
     
-    return identifier;
+    // For 11-digit numbers starting with 1, remove the leading 1
+    if (digits.length === 11 && digits[0] === '1') {
+      return digits.slice(1);
+    }
+    
+    // For other cases, return the digits as-is
+    return digits;
+  }
+
+  /**
+   * Format phone number with auto +1 country code addition
+   */
+  private formatPhoneNumber(phone: string): string {
+    // Remove non-digits
+    const digits = phone.replace(/\D/g, '');
+    
+    // Auto-add +1 for 10-digit numbers (assume US/Canada)
+    if (digits.length === 10) {
+      return `+1 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    } 
+    // Format 11-digit numbers starting with 1
+    else if (digits.length === 11 && digits[0] === '1') {
+      return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+    }
+    // For other lengths, try to format but preserve original structure
+    else if (digits.length > 10) {
+      // International number - add + if missing
+      const formatted = phone.startsWith('+') ? phone : `+${phone}`;
+      return formatted;
+    }
+    
+    // Fallback for short numbers or non-standard formats
+    return phone;
   }
 
   /**

@@ -3,6 +3,42 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { ContactResolver } from '../services/ContactResolver';
 
+/**
+ * Normalize phone number input to add +1 country code if needed
+ */
+function normalizePhoneInput(input: string): string {
+  // If it's an email, return as-is
+  if (input.includes('@')) {
+    return input;
+  }
+  
+  // Remove all non-digits
+  const digits = input.replace(/\D/g, '');
+  
+  // Auto-add +1 for 10-digit US numbers
+  if (digits.length === 10) {
+    return `+1${digits}`;
+  }
+  
+  // If it's 11 digits starting with 1, add +
+  if (digits.length === 11 && digits[0] === '1') {
+    return `+${digits}`;
+  }
+  
+  // If it already starts with +, keep as-is
+  if (input.startsWith('+')) {
+    return input;
+  }
+  
+  // For other cases, add + if it's all digits
+  if (/^\d+$/.test(input.trim())) {
+    return `+${input.trim()}`;
+  }
+  
+  // Return original if we can't normalize
+  return input;
+}
+
 export const contactsCommand = new Command('contacts')
   .description('Manage contact name mappings')
   .option('-a, --add <identifier>', 'Add manual contact mapping (will prompt for name)')
@@ -14,26 +50,27 @@ export const contactsCommand = new Command('contacts')
       const contactResolver = new ContactResolver();
 
       if (options.add) {
-        const identifier = options.add;
+        const normalizedIdentifier = normalizePhoneInput(options.add);
         const { name } = await inquirer.prompt([
           {
             type: 'input',
             name: 'name',
-            message: `Enter contact name for ${identifier}:`,
+            message: `Enter contact name for ${normalizedIdentifier}:`,
             validate: (input) => {
               if (!input.trim()) return 'Please enter a contact name.';
               return true;
             },
           },
         ]);
-        contactResolver.addManualContact(identifier, name.trim());
-        console.log(chalk.green(`✅ Added contact: ${identifier} → ${name}`));
+        contactResolver.addManualContact(normalizedIdentifier, name.trim());
+        console.log(chalk.green(`✅ Added contact: ${normalizedIdentifier} → ${name}`));
         return;
       }
 
       if (options.remove) {
-        contactResolver.removeManualContact(options.remove);
-        console.log(chalk.green(`✅ Removed contact mapping for: ${options.remove}`));
+        const normalizedIdentifier = normalizePhoneInput(options.remove);
+        contactResolver.removeManualContact(normalizedIdentifier);
+        console.log(chalk.green(`✅ Removed contact mapping for: ${normalizedIdentifier}`));
         return;
       }
 
@@ -43,7 +80,8 @@ export const contactsCommand = new Command('contacts')
       }
 
       if (options.test) {
-        await testContactResolution(contactResolver, options.test);
+        const normalizedIdentifier = normalizePhoneInput(options.test);
+        await testContactResolution(contactResolver, normalizedIdentifier);
         return;
       }
 
@@ -128,6 +166,10 @@ async function addContactMapping(contactResolver: ContactResolver) {
       validate: (input) => {
         if (!input.trim()) return 'Please enter a phone number or email.';
         return true;
+      },
+      filter: (input) => {
+        // Auto-normalize phone numbers
+        return normalizePhoneInput(input.trim());
       },
     },
     {

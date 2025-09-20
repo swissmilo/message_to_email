@@ -150,7 +150,9 @@ npm run cli contacts
 **Contact Resolution Features:**
 - **Manual Mappings**: Map phone numbers/emails to display names
 - **macOS Contacts Integration**: Automatically lookup names from your Contacts app  
-- **Formatted Display**: Pretty phone number formatting when no contact found
+- **Auto +1 Country Code**: Automatically adds +1 to 10-digit US/Canada numbers
+- **Smart Phone Formatting**: Pretty formatting like "+1 (415) 555-1234"
+- **Input Normalization**: CLI auto-formats phone input (e.g., "4155551234" → "+14155551234")
 - **Bulk Resolution**: Test resolution for all participants in recent conversations
 
 ### Development
@@ -187,6 +189,8 @@ npm run build
 - ✅ **Real message-to-email conversion**
 - ✅ **Contact name resolution with manual mappings**
 - ✅ **macOS Contacts app integration**
+- ✅ **Smart email subjects with phone numbers for filtering**
+- ✅ **Auto +1 country code addition for US/Canada numbers**
 
 ## Project Structure
 
@@ -248,6 +252,23 @@ Environment variables for Gmail authentication (create from `env.example`):
 - `GMAIL_APP_PASSWORD`: 16-character app password from Google
 - `EMAIL_TO`: Recipient email address
 - `EMAIL_FROM_NAME`: Display name for sent emails
+
+## Email Subject Format
+
+The app creates smart email subjects that always include phone numbers for easy filtering:
+
+**When contact name is available:**
+- `iMessage: Sarah (+14156300688)`
+- `Re: iMessage: John Smith (+14155551234)`
+
+**When no contact name found:**
+- `iMessage: +1 (415) 555-1234`
+- `Re: iMessage: +1 (415) 555-1234`
+
+**Benefits for Gmail filtering:**
+- Set up filters based on phone numbers: `(+14156300688)`
+- Easily identify conversation participants
+- Professional appearance with contact names
 
 ## Next Steps
 

@@ -21,11 +21,13 @@
     "chalk": "^5.3.0",
     "ora": "^7.0.1",
     "dotenv": "^16.3.1",
-    "node-html-parser": "^6.1.11"
+    "node-html-parser": "^6.1.11",
+    "node-cron": "^3.0.3"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
     "@types/inquirer": "^9.0.7",
+    "@types/node-cron": "^3.0.11",
     "typescript": "^5.3.0",
     "ts-node": "^10.9.1",
     "@typescript-eslint/eslint-plugin": "^6.13.0",

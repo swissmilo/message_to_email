@@ -61,6 +61,32 @@ npm run cli list --limit 50
 npm run cli list --groups
 ```
 
+### Sync Management
+
+```bash
+# Interactive sync setup
+npm run cli sync
+
+# View sync status
+npm run cli sync --status
+
+# Add conversation to tracking
+npm run cli sync --add "+15551234567"
+
+# Remove conversation from tracking
+npm run cli sync --remove "+15551234567"
+```
+
+### Background Service
+
+```bash
+# Run sync service (checks every minute)
+npm run cli service
+
+# Run with verbose logging
+npm run cli service --verbose
+```
+
 ### Development
 
 ```bash
@@ -84,6 +110,11 @@ npm run build
 - ✅ Phone number formatting for display
 - ✅ Conversation sorting by last message date
 - ✅ Message count and participant detection
+- ✅ **Interactive sync command for conversation tracking**
+- ✅ **Configuration management with JSON persistence**
+- ✅ **Automatic background service with cron scheduling**
+- ✅ **Command-line options for quick operations**
+- ✅ **Incremental sync simulation (ready for email integration)**
 
 ## Project Structure
 
@@ -92,11 +123,15 @@ text_to_email/
 ├── src/
 │   ├── index.ts           # CLI entry point
 │   ├── commands/
-│   │   └── list.ts        # List command implementation
+│   │   ├── list.ts        # List command implementation
+│   │   ├── sync.ts        # Interactive sync command
+│   │   └── service.ts     # Background service command
 │   ├── services/
-│   │   └── MessageExporter.ts  # Wrapper for imessage-exporter
+│   │   ├── MessageExporter.ts  # Wrapper for imessage-exporter
+│   │   └── ConfigManager.ts    # Configuration management
 │   ├── types/
-│   │   └── index.ts       # TypeScript type definitions
+│   │   ├── index.ts       # Core TypeScript interfaces
+│   │   └── config.ts      # Configuration type definitions
 │   └── utils/
 │       └── permissions.ts  # Permission checking utilities
 ├── package.json

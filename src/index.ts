@@ -3,6 +3,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { listCommand } from './commands/list';
+import { syncCommand } from './commands/sync';
+import { serviceCommand } from './commands/service';
 
 const program = new Command();
 
@@ -24,6 +26,8 @@ program
 
 // Add commands
 program.addCommand(listCommand);
+program.addCommand(syncCommand);
+program.addCommand(serviceCommand);
 
 // Parse command line arguments
 program.parse(process.argv);

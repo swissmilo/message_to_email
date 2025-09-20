@@ -143,6 +143,11 @@ export class ConfigManager {
         enableAutoSync: false,
         logLevel: 'info',
       },
+      email: {
+        enabled: true,
+        fromName: 'iMessage Sync',
+        recipientEmail: undefined, // Will use EMAIL_TO environment variable
+      },
       export: {
         format: 'html',
         attachments: false,

@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import { listCommand } from './commands/list';
 import { syncCommand } from './commands/sync';
 import { serviceCommand } from './commands/service';
+import { emailCommand } from './commands/email';
 
 const program = new Command();
 
@@ -28,6 +29,7 @@ program
 program.addCommand(listCommand);
 program.addCommand(syncCommand);
 program.addCommand(serviceCommand);
+program.addCommand(emailCommand);
 
 // Parse command line arguments
 program.parse(process.argv);

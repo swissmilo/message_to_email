@@ -16,14 +16,15 @@ export interface SyncConfig {
   logLevel: 'error' | 'warn' | 'info' | 'debug';
 }
 
+export interface EmailConfig {
+  enabled: boolean;
+  fromName: string;
+  recipientEmail?: string; // If not set, will use environment variable
+}
+
 export interface AppConfig {
   sync: SyncConfig;
-  gmail?: {
-    email?: string;
-    clientId?: string;
-    clientSecret?: string;
-    refreshToken?: string;
-  };
+  email: EmailConfig;
   export: {
     format: 'html' | 'txt';
     attachments: boolean;

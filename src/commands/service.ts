@@ -1,9 +1,14 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import cron from 'node-cron';
+import dotenv from 'dotenv';
 import { MessageExporter } from '../services/MessageExporter';
 import { ConfigManager } from '../services/ConfigManager';
+import { GmailService } from '../services/GmailService';
 import { checkFullDiskAccess, checkImessageExporterInstalled } from '../utils/permissions';
+
+// Load environment variables
+dotenv.config();
 
 export const serviceCommand = new Command('service')
   .description('Run the sync service in the background')
@@ -57,6 +62,7 @@ export const serviceCommand = new Command('service')
 class SyncService {
   private configManager: ConfigManager;
   private exporter: MessageExporter;
+  private gmailService: GmailService | null = null;
   private verbose: boolean;
   private cronJob: any = null;
   private isRunning = false;
@@ -70,6 +76,20 @@ class SyncService {
   async start() {
     const config = await this.configManager.loadConfig();
     const cronExpression = `*/${config.sync.syncInterval} * * * *`; // Every N minutes
+
+    // Initialize Gmail service if email is enabled
+    if (config.email.enabled) {
+      try {
+        this.gmailService = new GmailService(config.email);
+        await this.gmailService.initialize();
+        this.log('info', '📧 Gmail service initialized');
+      } catch (error) {
+        this.log('error', `❌ Failed to initialize Gmail service: ${error}`);
+        this.log('info', '📝 Running in simulation mode (no emails will be sent)');
+      }
+    } else {
+      this.log('info', '📝 Email sending disabled - running in simulation mode');
+    }
 
     this.log('info', `🔄 Service started with cron: ${cronExpression}`);
     
@@ -155,24 +175,96 @@ class SyncService {
   }
 
   async syncConversation(conv: any): Promise<number> {
-    // For now, simulate finding new messages
-    // In a real implementation, this would:
-    // 1. Export messages for this specific conversation since last sync
-    // 2. Compare with last known message ID
-    // 3. Process new messages and send emails
-    // 4. Update last message ID
-    
-    const newMessages = Math.floor(Math.random() * 3); // Random 0-2 new messages for demo
-    
-    if (newMessages > 0) {
-      // Simulate processing messages
-      for (let i = 0; i < newMessages; i++) {
-        const messageContent = `[DEMO] New message ${i + 1} from ${conv.displayName}`;
-        this.log('info', `📧 Would send email: ${messageContent}`);
+    try {
+      // Export recent messages for this specific conversation
+      const tempDir = `temp_sync_${Date.now()}`;
+      const exportOptions = {
+        format: 'html' as const,
+        outputDir: tempDir,
+        startDate: conv.lastSyncDate || new Date(Date.now() - 24 * 60 * 60 * 1000), // Last day if no previous sync
+        endDate: new Date(),
+        noAttachments: true,
+        contacts: conv.participants, // Filter to this conversation only
+      };
+
+      const exportResult = await this.exporter.exportMessages(exportOptions);
+      if (!exportResult.success) {
+        this.log('error', `❌ Export failed for ${conv.displayName}: ${exportResult.error}`);
+        return 0;
       }
+
+      // Parse the exported messages
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      
+      try {
+        const files = await fs.readdir(tempDir);
+        const htmlFiles = files.filter(file => file.endsWith('.html'));
+        
+        let totalNewMessages = 0;
+        
+        for (const htmlFile of htmlFiles) {
+          const filePath = path.join(tempDir, htmlFile);
+          const parsedData = await this.exporter.parseExportedData(filePath);
+          
+          for (const [chatId, messages] of parsedData.conversations) {
+            if (messages.length > 0) {
+              // Filter messages newer than last sync
+              const newMessages = messages.filter(msg => 
+                !conv.lastSyncDate || msg.date > conv.lastSyncDate
+              );
+              
+              if (newMessages.length > 0) {
+                if (this.gmailService) {
+                  // Send emails for new messages
+                  const emails = this.gmailService.convertConversationToEmail(
+                    newMessages,
+                    conv.displayName,
+                    conv.chatIdentifier
+                  );
+                  
+                  for (const email of emails) {
+                    try {
+                      await this.gmailService.sendEmail(email);
+                      this.log('info', `📧 Email sent for message from ${conv.displayName}`);
+                    } catch (emailError) {
+                      this.log('error', `❌ Failed to send email: ${emailError}`);
+                    }
+                  }
+                } else {
+                  // Simulation mode
+                  this.log('info', `📧 [SIMULATION] Would send ${newMessages.length} email(s) from ${conv.displayName}`);
+                  for (const msg of newMessages) {
+                    this.log('debug', `📧 [SIMULATION] Message: "${msg.text.substring(0, 50)}${msg.text.length > 50 ? '...' : ''}"`);
+                  }
+                }
+                
+                totalNewMessages += newMessages.length;
+              }
+            }
+          }
+        }
+        
+        // Clean up temp directory
+        await fs.rm(tempDir, { recursive: true, force: true });
+        
+        return totalNewMessages;
+        
+      } catch (parseError) {
+        this.log('error', `❌ Failed to parse exported messages: ${parseError}`);
+        // Clean up temp directory on error
+        try {
+          await fs.rm(tempDir, { recursive: true, force: true });
+        } catch (cleanupError) {
+          // Ignore cleanup errors
+        }
+        return 0;
+      }
+      
+    } catch (error) {
+      this.log('error', `❌ Sync error for ${conv.displayName}: ${error}`);
+      return 0;
     }
-    
-    return newMessages;
   }
 
   shutdown() {

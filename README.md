@@ -34,17 +34,45 @@ npm install
 npm run build
 ```
 
-## Permissions Setup
+## Setup Instructions
 
-### Full Disk Access Required
+### 1. Full Disk Access (Required)
 
-This tool requires Full Disk Access to read your Messages database. To grant permission:
+This tool requires Full Disk Access to read your Messages database:
 
 1. Open **System Settings**
 2. Go to **Privacy & Security** → **Full Disk Access**
 3. Click the **+** button
 4. Add your terminal application (Terminal.app, iTerm2, etc.)
 5. **Restart your terminal**
+
+### 2. Gmail Configuration (For Email Sync)
+
+#### Enable 2-Factor Authentication
+- Go to: https://myaccount.google.com/security
+- Enable 2-Step Verification if not already enabled
+
+#### Generate App Password
+- Go to: https://myaccount.google.com/apppasswords
+- Generate a new app password for "Mail"
+- Copy the 16-character password (format: abcd efgh ijkl mnop)
+
+#### Set Environment Variables
+```bash
+# Copy example file
+cp env.example .env
+
+# Edit .env file with your details:
+GMAIL_USER=youremail@gmail.com
+GMAIL_APP_PASSWORD=your-16-character-app-password
+EMAIL_TO=recipient@gmail.com
+EMAIL_FROM_NAME=iMessage Sync
+```
+
+#### Test Setup
+```bash
+npm run cli email --test
+```
 
 ## Usage
 
@@ -75,6 +103,19 @@ npm run cli sync --add "+15551234567"
 
 # Remove conversation from tracking
 npm run cli sync --remove "+15551234567"
+```
+
+### Email Configuration
+
+```bash
+# Configure Gmail settings (interactive)
+npm run cli email
+
+# Configure email settings
+npm run cli email --config
+
+# Send test email
+npm run cli email --test
 ```
 
 ### Background Service
@@ -114,7 +155,11 @@ npm run build
 - ✅ **Configuration management with JSON persistence**
 - ✅ **Automatic background service with cron scheduling**
 - ✅ **Command-line options for quick operations**
-- ✅ **Incremental sync simulation (ready for email integration)**
+- ✅ **Gmail integration with Nodemailer**
+- ✅ **Email formatting with proper threading headers**
+- ✅ **Environment variable configuration**
+- ✅ **Email testing and validation**
+- ✅ **Real message-to-email conversion**
 
 ## Project Structure
 

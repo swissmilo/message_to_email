@@ -170,19 +170,40 @@ text_to_email/
 │   ├── commands/
 │   │   ├── list.ts        # List command implementation
 │   │   ├── sync.ts        # Interactive sync command
-│   │   └── service.ts     # Background service command
+│   │   ├── service.ts     # Background service command
+│   │   └── email.ts       # Email configuration command
 │   ├── services/
 │   │   ├── MessageExporter.ts  # Wrapper for imessage-exporter
-│   │   └── ConfigManager.ts    # Configuration management
+│   │   ├── ConfigManager.ts    # Configuration management
+│   │   └── GmailService.ts     # Gmail/email integration
 │   ├── types/
 │   │   ├── index.ts       # Core TypeScript interfaces
 │   │   └── config.ts      # Configuration type definitions
 │   └── utils/
 │       └── permissions.ts  # Permission checking utilities
+├── imessage-sync-config.json  # Configuration file (auto-generated)
+├── .env                   # Environment variables (create from env.example)
+├── env.example           # Environment variable template
 ├── package.json
 ├── tsconfig.json
 └── README.md
 ```
+
+## Configuration Files
+
+### `imessage-sync-config.json`
+This file is automatically created in the app directory and contains:
+- **Tracked conversations**: Phone numbers/emails you want to sync
+- **Sync settings**: Interval, auto-sync enabled/disabled
+- **Email configuration**: Sender name, recipient overrides
+- **Export settings**: Format, attachments, message limits
+
+### `.env`
+Environment variables for Gmail authentication (create from `env.example`):
+- `GMAIL_USER`: Your Gmail email address
+- `GMAIL_APP_PASSWORD`: 16-character app password from Google
+- `EMAIL_TO`: Recipient email address
+- `EMAIL_FROM_NAME`: Display name for sent emails
 
 ## Next Steps
 

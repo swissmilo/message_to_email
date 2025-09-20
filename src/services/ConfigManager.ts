@@ -8,8 +8,8 @@ export class ConfigManager {
   private config: AppConfig | null = null;
 
   constructor() {
-    // Store config in user's home directory
-    this.configPath = path.join(os.homedir(), '.imessage-sync-config.json');
+    // Store config in app directory
+    this.configPath = path.join(process.cwd(), 'imessage-sync-config.json');
   }
 
   /**

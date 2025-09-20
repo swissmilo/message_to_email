@@ -10,6 +10,7 @@ dist/
 
 # Configuration
 .imessage-sync.json
+imessage-sync-config.json
 
 # Logs
 logs/

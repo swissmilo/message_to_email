@@ -15,6 +15,13 @@ export class MessageExporter {
   }
 
   /**
+   * Initialize services (call this once before using the exporter)
+   */
+  async initialize(): Promise<void> {
+    await this.contactResolver.initialize();
+  }
+
+  /**
    * Check if imessage-exporter is installed and accessible
    */
   async checkInstallation(): Promise<boolean> {

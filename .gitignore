@@ -12,6 +12,7 @@ dist/
 .imessage-sync.json
 imessage-sync-config.json
 contacts-config.json
+contacts-cache.json
 
 # Logs
 logs/
@@ -31,3 +32,6 @@ Thumbs.db
 
 # Export output
 exports/
+temp_export/
+temp_sync_*/
+temp_messages_*/

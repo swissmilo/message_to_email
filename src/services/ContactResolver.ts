@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { ContactCache } from './ContactCache';
 
 export interface ContactInfo {
   phoneNumber?: string;
@@ -12,32 +12,64 @@ export interface ContactInfo {
 export class ContactResolver {
   private contactCache = new Map<string, ContactInfo>();
   private manualContacts = new Map<string, string>(); // identifier -> display name
+  private globalContactCache: ContactCache;
 
   constructor() {
     this.loadManualContacts();
+    this.globalContactCache = new ContactCache();
   }
 
   /**
-   * Resolve a phone number or email to a contact name
+   * Initialize the global contact cache (call this once at startup)
+   */
+  async initialize(): Promise<void> {
+    const cacheExists = await this.globalContactCache.cacheExists();
+    
+    if (!cacheExists) {
+      console.log('📇 No contact cache found. Run "npm run cli contacts --sync" to download contacts for fast lookups.');
+      console.log('📇 Contact resolution will fall back to manual mappings and formatted display names.');
+    } else {
+      const isValid = await this.globalContactCache.isCacheValid();
+      if (isValid) {
+        await this.globalContactCache.loadCache();
+        const cacheInfo = this.globalContactCache.getCacheInfo();
+        console.log(`📇 Loaded contacts cache: ${cacheInfo?.contacts} contacts, ${cacheInfo?.phones} phones, ${cacheInfo?.emails} emails`);
+        const daysSinceUpdate = cacheInfo ? Math.floor((Date.now() - new Date(cacheInfo.lastUpdated).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+        console.log(`📇 Cache age: ${daysSinceUpdate} day(s) old`);
+      } else {
+        console.log('📇 Contact cache is stale (>30 days old). Run "npm run cli contacts --sync" to refresh.');
+        await this.globalContactCache.loadCache(); // Load it anyway, better than nothing
+      }
+    }
+  }
+
+  /**
+   * Resolve a phone number or email to a contact name (fast lookup)
    */
   async resolveContact(identifier: string): Promise<ContactInfo> {
-    // Check cache first
+    // Check local cache first
     if (this.contactCache.has(identifier)) {
       return this.contactCache.get(identifier)!;
     }
 
-    // Try to resolve via macOS Contacts app first (real names are better than manual mappings)
-    try {
-      const contactInfo = await this.resolveViaContacts(identifier);
-      if (contactInfo && contactInfo.displayName && 
-          !contactInfo.displayName.match(/^\+?\d/) && 
-          !contactInfo.displayName.includes('@')) {
-        // This looks like a real name, not a phone number or email
-        this.contactCache.set(identifier, contactInfo);
-        return contactInfo;
-      }
-    } catch (error) {
-      // Continue to manual mappings
+    let displayName: string | null = null;
+
+    // Try global contact cache first (fastest)
+    if (identifier.includes('@')) {
+      displayName = this.globalContactCache.lookupByEmail(identifier);
+    } else {
+      displayName = this.globalContactCache.lookupByPhone(identifier);
+    }
+
+    // If found in global cache, use that name
+    if (displayName) {
+      const contactInfo: ContactInfo = {
+        displayName,
+        phoneNumber: identifier.includes('@') ? undefined : identifier,
+        email: identifier.includes('@') ? identifier : undefined,
+      };
+      this.contactCache.set(identifier, contactInfo);
+      return contactInfo;
     }
 
     // Check manual mappings as backup
@@ -96,69 +128,19 @@ export class ContactResolver {
   }
 
   /**
-   * Try to resolve contact via macOS Contacts app using AppleScript
+   * Force refresh of global contacts cache
    */
-  private async resolveViaContacts(identifier: string): Promise<ContactInfo | null> {
-    return new Promise((resolve) => {
-      // AppleScript to query Contacts app
-      const script = identifier.includes('@') 
-        ? `
-          tell application "Contacts"
-            set matchingPeople to (every person whose email contains "${identifier}")
-            if length of matchingPeople > 0 then
-              set firstPerson to item 1 of matchingPeople
-              set fullName to name of firstPerson
-              return fullName
-            else
-              return ""
-            end if
-          end tell
-        `
-        : `
-          tell application "Contacts"
-            set phoneToFind to "${this.normalizePhoneForSearch(identifier)}"
-            set matchingPeople to (every person whose phone contains phoneToFind)
-            if length of matchingPeople > 0 then
-              set firstPerson to item 1 of matchingPeople
-              set fullName to name of firstPerson
-              return fullName
-            else
-              return ""
-            end if
-          end tell
-        `;
+  async refreshContactsCache(): Promise<void> {
+    await this.globalContactCache.forceRefresh();
+    // Clear local cache to force re-resolution with new data
+    this.contactCache.clear();
+  }
 
-      const osascript = spawn('osascript', ['-e', script]);
-      let output = '';
-      let error = '';
-
-      osascript.stdout.on('data', (data) => {
-        output += data.toString();
-      });
-
-      osascript.stderr.on('data', (data) => {
-        error += data.toString();
-      });
-
-      osascript.on('close', (code) => {
-        if (code === 0 && output.trim()) {
-          const displayName = output.trim();
-          resolve({
-            displayName,
-            phoneNumber: identifier.includes('@') ? undefined : identifier,
-            email: identifier.includes('@') ? identifier : undefined,
-          });
-        } else {
-          resolve(null);
-        }
-      });
-
-      // Timeout after 5 seconds
-      setTimeout(() => {
-        osascript.kill();
-        resolve(null);
-      }, 5000);
-    });
+  /**
+   * Get cache statistics
+   */
+  getCacheInfo(): { contacts: number; phones: number; emails: number; lastUpdated: string } | null {
+    return this.globalContactCache.getCacheInfo();
   }
 
   /**
@@ -171,26 +153,6 @@ export class ContactResolver {
     
     // Format phone numbers with auto +1 country code
     return this.formatPhoneNumber(identifier);
-  }
-
-  /**
-   * Normalize phone number for search in Contacts app
-   */
-  private normalizePhoneForSearch(identifier: string): string {
-    const digits = identifier.replace(/\D/g, '');
-    
-    // For 10-digit numbers, search with just the digits (Contacts might have different formats)
-    if (digits.length === 10) {
-      return digits;
-    }
-    
-    // For 11-digit numbers starting with 1, remove the leading 1
-    if (digits.length === 11 && digits[0] === '1') {
-      return digits.slice(1);
-    }
-    
-    // For other cases, return the digits as-is
-    return digits;
   }
 
   /**
@@ -255,25 +217,21 @@ export class ContactResolver {
   }
 
   /**
-   * Batch resolve multiple contacts
+   * Batch resolve multiple contacts (fast)
    */
   async resolveMultipleContacts(identifiers: string[]): Promise<Map<string, ContactInfo>> {
     const results = new Map<string, ContactInfo>();
     
-    // Process in parallel with a limit
-    const batchSize = 5;
-    for (let i = 0; i < identifiers.length; i += batchSize) {
-      const batch = identifiers.slice(i, i + batchSize);
-      const promises = batch.map(async (id) => {
-        const contact = await this.resolveContact(id);
-        return [id, contact] as [string, ContactInfo];
-      });
-      
-      const batchResults = await Promise.all(promises);
-      batchResults.forEach(([id, contact]) => {
-        results.set(id, contact);
-      });
-    }
+    // Process all at once since we're using fast cached lookups
+    const promises = identifiers.map(async (id) => {
+      const contact = await this.resolveContact(id);
+      return [id, contact] as [string, ContactInfo];
+    });
+    
+    const batchResults = await Promise.all(promises);
+    batchResults.forEach(([id, contact]) => {
+      results.set(id, contact);
+    });
     
     return results;
   }

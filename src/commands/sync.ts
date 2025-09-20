@@ -228,8 +228,12 @@ async function addManualConversation(configManager: ConfigManager, exporter: Mes
     },
   ]);
 
+  // Initialize contact cache if needed
+  await exporter.initialize();
+
   // Automatically resolve contact name if available
   const contactResolver = new ContactResolver();
+  await contactResolver.initialize();
   let suggestedName = identifier.trim();
   
   try {
@@ -365,8 +369,12 @@ async function editConfigFile(configManager: ConfigManager) {
 }
 
 async function addConversationByIdentifier(configManager: ConfigManager, exporter: MessageExporter, identifier: string) {
+  // Initialize contact cache if needed
+  await exporter.initialize();
+  
   // Automatically resolve contact name if available
   const contactResolver = new ContactResolver();
+  await contactResolver.initialize();
   let displayName = identifier;
   
   try {

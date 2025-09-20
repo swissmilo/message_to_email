@@ -63,9 +63,11 @@ export class ConfigManager {
       tracked => tracked.chatIdentifier === conversation.chatIdentifier
     );
 
+    const now = new Date();
     const trackedConversation: TrackedConversation = {
       ...conversation,
-      addedDate: new Date(),
+      addedDate: now,
+      lastSyncDate: now, // Set to now so we only email new messages going forward
     };
 
     if (existingIndex >= 0) {

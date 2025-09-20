@@ -144,6 +144,11 @@ class SyncService {
       this.log('info', '📝 Email sending disabled - running in simulation mode');
     }
 
+    // Initialize contact cache
+    this.log('info', '📇 Initializing contact cache...');
+    const exporter = new MessageExporter();
+    await exporter.initialize();
+
     this.log('info', '🔄 Running single sync...');
     await this.runSync();
     this.log('info', '✅ Single sync completed');

@@ -45,9 +45,24 @@ export const contactsCommand = new Command('contacts')
   .option('-r, --remove <identifier>', 'Remove manual contact mapping')
   .option('-l, --list', 'List all manual contact mappings')
   .option('-t, --test <identifier>', 'Test contact resolution for an identifier')
+  .option('-s, --sync', 'Download and cache all contacts from macOS Contacts app')
+  .option('--cache-info', 'Show contact cache information')
   .action(async (options) => {
     try {
       const contactResolver = new ContactResolver();
+
+      if (options.sync) {
+        await syncContacts(contactResolver);
+        return;
+      }
+
+      if (options.cacheInfo) {
+        await showCacheInfo(contactResolver);
+        return;
+      }
+      
+      // Initialize contact cache for other operations (but don't auto-sync)
+      await contactResolver.initialize();
 
       if (options.add) {
         const normalizedIdentifier = normalizePhoneInput(options.add);
@@ -304,5 +319,87 @@ async function bulkResolveContacts(contactResolver: ContactResolver) {
   } catch (error) {
     console.log(chalk.red('❌ Bulk resolution failed:'));
     console.log(chalk.red(error instanceof Error ? error.message : String(error)));
+  }
+}
+
+/**
+ * Sync contacts from macOS Contacts app
+ */
+async function syncContacts(contactResolver: ContactResolver) {
+  console.log(chalk.cyan('📇 Syncing contacts from macOS Contacts app...'));
+  console.log(chalk.gray('This may take a few minutes for large contact lists.\n'));
+
+  try {
+    await contactResolver.refreshContactsCache();
+    
+    const cacheInfo = contactResolver.getCacheInfo();
+    if (cacheInfo) {
+      console.log(chalk.green('✅ Contact sync completed successfully!'));
+      console.log(`   📞 ${cacheInfo.contacts} contacts cached`);
+      console.log(`   📞 ${cacheInfo.phones} phone numbers indexed`);
+      console.log(`   📧 ${cacheInfo.emails} email addresses indexed`);
+      console.log(`   🕒 Last updated: ${new Date(cacheInfo.lastUpdated).toLocaleString()}`);
+      console.log();
+      console.log(chalk.cyan('💡 Contact lookups will now be much faster!'));
+    } else {
+      console.log(chalk.yellow('⚠️  Sync completed but cache info unavailable'));
+    }
+  } catch (error) {
+    console.error(chalk.red('❌ Failed to sync contacts:'), error instanceof Error ? error.message : String(error));
+    console.log();
+    console.log(chalk.gray('You can still use manual contact mappings with:'));
+    console.log(chalk.gray('npm run cli -- contacts --add <phone-number>'));
+  }
+}
+
+/**
+ * Show contact cache information
+ */
+async function showCacheInfo(contactResolver: ContactResolver) {
+  console.log(chalk.cyan('📇 Contact Cache Information\n'));
+
+  try {
+    await contactResolver.initialize();
+    const cacheInfo = contactResolver.getCacheInfo();
+
+    if (cacheInfo) {
+      const lastUpdated = new Date(cacheInfo.lastUpdated);
+      const daysSinceUpdate = Math.floor((Date.now() - lastUpdated.getTime()) / (1000 * 60 * 60 * 24));
+      
+      console.log(`📞 Contacts cached: ${chalk.bold(cacheInfo.contacts.toLocaleString())}`);
+      console.log(`📞 Phone numbers indexed: ${chalk.bold(cacheInfo.phones.toLocaleString())}`);
+      console.log(`📧 Email addresses indexed: ${chalk.bold(cacheInfo.emails.toLocaleString())}`);
+      console.log(`🕒 Last updated: ${chalk.bold(lastUpdated.toLocaleString())}`);
+      console.log(`📅 Cache age: ${chalk.bold(daysSinceUpdate)} day(s) old`);
+      
+      if (daysSinceUpdate > 30) {
+        console.log();
+        console.log(chalk.yellow('⚠️  Cache is stale (>30 days old). Consider refreshing:'));
+        console.log(chalk.gray('npm run cli -- contacts --sync'));
+      } else if (daysSinceUpdate > 7) {
+        console.log();
+        console.log(chalk.gray('💡 Cache is getting old. You may want to refresh soon:'));
+        console.log(chalk.gray('npm run cli -- contacts --sync'));
+      } else {
+        console.log();
+        console.log(chalk.green('✅ Cache is fresh and up to date!'));
+      }
+    } else {
+      console.log(chalk.yellow('⚠️  No contact cache found.'));
+      console.log();
+      console.log(chalk.gray('To enable fast contact lookups, run:'));
+      console.log(chalk.gray('npm run cli -- contacts --sync'));
+    }
+
+    // Show manual contacts count
+    const manualContacts = contactResolver.getManualContacts();
+    if (manualContacts.size > 0) {
+      console.log();
+      console.log(`🔧 Manual contact mappings: ${chalk.bold(manualContacts.size.toString())}`);
+      console.log(chalk.gray('Use --list to see all manual mappings'));
+    }
+
+  } catch (error) {
+    console.error(chalk.red('❌ Failed to get cache info:'), error instanceof Error ? error.message : String(error));
   }
 }

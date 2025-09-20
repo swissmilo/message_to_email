@@ -116,6 +116,21 @@ export class ConfigManager {
     }
   }
 
+  async updateLastSyncWithTimestamp(chatIdentifier: string, timestamp: Date, lastMessageId?: string): Promise<void> {
+    const config = await this.loadConfig();
+    const conversation = config.sync.trackedConversations.find(
+      tracked => tracked.chatIdentifier === chatIdentifier
+    );
+
+    if (conversation) {
+      conversation.lastSyncDate = timestamp;
+      if (lastMessageId) {
+        conversation.lastMessageId = lastMessageId;
+      }
+      await this.saveConfig(config);
+    }
+  }
+
   /**
    * Update global sync settings
    */

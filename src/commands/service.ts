@@ -14,6 +14,7 @@ export const serviceCommand = new Command('service')
   .description('Run the sync service in the background')
   .option('-d, --daemon', 'Run as a daemon (detached process)')
   .option('-v, --verbose', 'Enable verbose logging')
+  .option('--once', 'Run sync once and exit (for testing)')
   .action(async (options) => {
     try {
       // Check permissions
@@ -51,7 +52,13 @@ export const serviceCommand = new Command('service')
       console.log();
 
       const syncService = new SyncService(configManager, options.verbose);
-      await syncService.start();
+      if (options.once) {
+        // Run sync once and exit
+        await syncService.runSyncOnce();
+      } else {
+        // Start the continuous service
+        await syncService.start();
+      }
 
     } catch (error) {
       console.error(chalk.red('Error starting service:'), error instanceof Error ? error.message : String(error));
@@ -120,6 +127,28 @@ class SyncService {
     }, 1000);
   }
 
+  async runSyncOnce() {
+    const config = await this.configManager.loadConfig();
+
+    // Initialize Gmail service if email is enabled
+    if (config.email.enabled) {
+      try {
+        this.gmailService = new GmailService(config.email);
+        await this.gmailService.initialize();
+        this.log('info', '📧 Gmail service initialized');
+      } catch (error) {
+        this.log('error', `❌ Failed to initialize Gmail service: ${error}`);
+        this.log('info', '📝 Running in simulation mode (no emails will be sent)');
+      }
+    } else {
+      this.log('info', '📝 Email sending disabled - running in simulation mode');
+    }
+
+    this.log('info', '🔄 Running single sync...');
+    await this.runSync();
+    this.log('info', '✅ Single sync completed');
+  }
+
   async runSync() {
     this.isRunning = true;
     const startTime = new Date();
@@ -144,8 +173,10 @@ class SyncService {
           
           if (newMessages > 0) {
             this.log('info', `📨 ${conv.displayName}: ${newMessages} new message(s)`);
-            // Update last sync date
-            await this.configManager.updateLastSync(conv.chatIdentifier);
+            // Update last sync date to the end of our export window (with buffer)
+            // This ensures we don't miss messages that arrived during processing
+            const syncTimestamp = new Date(Date.now() - 5000); // 5 second buffer
+            await this.configManager.updateLastSyncWithTimestamp(conv.chatIdentifier, syncTimestamp);
           } else if (this.verbose) {
             this.log('debug', `📨 ${conv.displayName}: no new messages`);
           }
@@ -176,13 +207,22 @@ class SyncService {
 
   async syncConversation(conv: any): Promise<number> {
     try {
+      // Add buffer time to catch very recent messages (5 seconds ago)
+      const now = new Date();
+      const endDate = new Date(now.getTime() - 5000); // 5 seconds buffer
+      const startDate = conv.lastSyncDate || new Date(Date.now() - 24 * 60 * 60 * 1000);
+      
+      this.log('debug', `🔍 Syncing ${conv.displayName}:`);
+      this.log('debug', `   Last sync: ${conv.lastSyncDate ? conv.lastSyncDate.toISOString() : 'Never'}`);
+      this.log('debug', `   Export range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+      
       // Export recent messages for this specific conversation
       const tempDir = `temp_sync_${Date.now()}`;
       const exportOptions = {
         format: 'html' as const,
         outputDir: tempDir,
-        startDate: conv.lastSyncDate || new Date(Date.now() - 24 * 60 * 60 * 1000), // Last day if no previous sync
-        endDate: new Date(),
+        startDate,
+        endDate,
         noAttachments: true,
         contacts: conv.participants, // Filter to this conversation only
       };
@@ -209,10 +249,18 @@ class SyncService {
           
           for (const [chatId, messages] of parsedData.conversations) {
             if (messages.length > 0) {
+              this.log('debug', `   Found ${messages.length} total message(s) in export`);
+              
               // Filter messages newer than last sync
-              const newMessages = messages.filter(msg => 
-                !conv.lastSyncDate || msg.date > conv.lastSyncDate
-              );
+              const newMessages = messages.filter(msg => {
+                const isNew = !conv.lastSyncDate || msg.date > conv.lastSyncDate;
+                if (this.verbose) {
+                  this.log('debug', `   Message from ${msg.date.toISOString()}: ${isNew ? 'NEW' : 'OLD'} - "${msg.text.substring(0, 30)}${msg.text.length > 30 ? '...' : ''}"`);
+                }
+                return isNew;
+              });
+              
+              this.log('debug', `   Filtered to ${newMessages.length} new message(s)`);
               
               if (newMessages.length > 0) {
                 if (this.gmailService) {

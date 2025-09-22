@@ -381,4 +381,30 @@ export class ContactCache {
       // File doesn't exist, that's fine
     }
   }
+
+  /**
+   * Search contacts by name (case-insensitive partial match)
+   */
+  searchContactsByName(searchTerm: string): { name: string; phones: string[]; emails: string[] }[] {
+    if (!this.cache || !searchTerm.trim()) return [];
+
+    const term = searchTerm.toLowerCase().trim();
+    const matches: { name: string; phones: string[]; emails: string[] }[] = [];
+
+    for (const contact of this.cache.contacts) {
+      if (contact.name.toLowerCase().includes(term)) {
+        matches.push({
+          name: contact.name,
+          phones: contact.phones,
+          emails: contact.emails,
+        });
+      }
+    }
+
+    // Sort by name for consistent results
+    matches.sort((a, b) => a.name.localeCompare(b.name));
+    
+    // Limit to 20 results for performance
+    return matches.slice(0, 20);
+  }
 }

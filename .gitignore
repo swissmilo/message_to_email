@@ -35,3 +35,6 @@ exports/
 temp_export/
 temp_sync_*/
 temp_messages_*/
+
+# Generated service files
+scripts/generated_*.plist

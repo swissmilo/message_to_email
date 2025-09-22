@@ -121,12 +121,39 @@ npm run cli -- email --test
 ### Background Service
 
 ```bash
-# Run sync service (checks every minute)
+# Run sync service manually (checks every minute)
 npm run cli -- service
 
 # Run with verbose logging
 npm run cli -- service --verbose
+
+# Run once for testing
+npm run cli -- service --once
 ```
+
+### System Service Installation
+
+Install as a macOS Launch Agent for automatic startup:
+
+```bash
+# Interactive installation menu
+npm run cli -- install
+
+# Quick commands
+npm run cli -- install --status     # Check service status
+npm run cli -- install --start      # Start the service
+npm run cli -- install --stop       # Stop the service
+npm run cli -- install --restart    # Restart the service
+npm run cli -- install --logs       # View service logs
+npm run cli -- install --uninstall  # Remove the service
+```
+
+**🚀 Auto-Startup Features:**
+- **Automatic startup** on system boot
+- **Auto-restart** on crashes
+- **Background logging** to `~/Library/Logs/imessage-sync.log`
+- **System integration** via macOS Launch Agent
+- **Easy management** with CLI commands
 
 ### Contact Management
 
@@ -219,7 +246,9 @@ text_to_email/
 │   │   ├── sync.ts        # Interactive sync command
 │   │   ├── service.ts     # Background service command
 │   │   ├── email.ts       # Email configuration command
-│   │   └── contacts.ts    # Contact management command
+│   │   ├── contacts.ts    # Contact management command
+│   │   ├── messages.ts    # Message debugging command
+│   │   └── install.ts     # Service installation command
 │   ├── services/
 │   │   ├── MessageExporter.ts  # Wrapper for imessage-exporter
 │   │   ├── ConfigManager.ts    # Configuration management
@@ -231,9 +260,11 @@ text_to_email/
 │   │   └── config.ts      # Configuration type definitions
 │   └── utils/
 │       └── permissions.ts  # Permission checking utilities
-├── imessage-sync-config.json  # Configuration file (auto-generated)
-├── contacts-config.json   # Manual contact mappings (auto-generated)
-├── contacts-cache.json    # Cached contacts from macOS Contacts (auto-generated)
+├── scripts/
+│   └── com.imessage-sync.plist  # macOS Launch Agent template
+├── imessage-sync-config.json    # Configuration file (auto-generated)
+├── contacts-config.json         # Manual contact mappings (auto-generated)
+├── contacts-cache.json          # Cached contacts from macOS Contacts (auto-generated)
 ├── .env                   # Environment variables (create from env.example)
 ├── env.example           # Environment variable template
 ├── package.json
@@ -311,10 +342,26 @@ The system is now production-ready with:
 
 1. **Setup**: Grant Full Disk Access, install dependencies, configure Gmail
 2. **Sync Contacts**: `npm run cli -- contacts --sync` (one-time, ~5 minutes)
-3. **Add Conversations**: `npm run cli -- sync --add "+15551234555"`
-4. **Start Service**: `npm run cli -- service` (runs continuously)
+3. **Add Conversations**: `npm run cli -- sync --add "+15551234567"`
+4. **Install Service**: `npm run cli -- install` (auto-start on boot)
 
 🎯 **Result**: New iMessages automatically appear in your Gmail inbox with proper contact names!
+
+### Service Management
+
+```bash
+# One-time setup (runs on system startup)
+npm run cli -- install
+
+# Check if service is running
+npm run cli -- install --status
+
+# View real-time logs
+npm run cli -- install --logs
+
+# Restart service (after code updates)
+npm run cli -- install --restart
+```
 
 ## Troubleshooting
 

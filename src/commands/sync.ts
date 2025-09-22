@@ -138,6 +138,7 @@ async function addConversationsInteractive(configManager: ConfigManager, exporte
       message: 'How would you like to add conversations?',
       choices: [
         { name: '📱 Select from recent conversations', value: 'recent' },
+        { name: '🔍 Search by contact name', value: 'search' },
         { name: '✍️  Enter phone number or email manually', value: 'manual' },
         { name: '🔙 Back to main menu', value: 'back' },
       ],
@@ -148,6 +149,8 @@ async function addConversationsInteractive(configManager: ConfigManager, exporte
 
   if (method === 'recent') {
     await addFromRecentConversations(configManager, exporter);
+  } else if (method === 'search') {
+    await addByContactSearch(configManager, exporter);
   } else if (method === 'manual') {
     await addManualConversation(configManager, exporter);
   }
@@ -157,6 +160,9 @@ async function addFromRecentConversations(configManager: ConfigManager, exporter
   const spinner = ora('Loading recent conversations...').start();
   
   try {
+    // Initialize contact cache if available
+    await exporter.initialize();
+    
     const conversations = await exporter.listConversations();
     const tracked = await configManager.getTrackedConversations();
     const trackedIds = new Set(tracked.map(t => t.chatIdentifier));
@@ -175,15 +181,15 @@ async function addFromRecentConversations(configManager: ConfigManager, exporter
 
     console.log(chalk.cyan('\n📱 Recent Conversations (showing up to 10):'));
     
+    // Enhance display with contact names
+    const enhancedChoices = await enhanceConversationChoices(available, exporter);
+    
     const { selectedConversations } = await inquirer.prompt([
       {
         type: 'checkbox',
         name: 'selectedConversations',
         message: 'Select conversations to track:',
-        choices: available.map(conv => ({
-          name: `${conv.displayName} ${conv.isGroup ? chalk.blue('(group)') : ''} - ${conv.messageCount} messages`,
-          value: conv.chatIdentifier,
-        })),
+        choices: enhancedChoices,
       },
     ]);
 
@@ -459,4 +465,140 @@ function formatDate(date: Date): string {
   } else {
     return date.toLocaleDateString();
   }
+}
+
+/**
+ * Enhance conversation choices with contact names alongside identifiers
+ */
+async function enhanceConversationChoices(conversations: any[], exporter: MessageExporter): Promise<any[]> {
+  const contactResolver = new ContactResolver();
+  await contactResolver.initialize();
+  
+  const enhancedChoices = [];
+  
+  for (const conv of conversations) {
+    let displayText = conv.displayName;
+    
+    // If this is a single participant conversation, try to show both the contact name and identifier
+    if (!conv.isGroup && conv.participants.length === 1) {
+      const identifier = conv.participants[0];
+      try {
+        const contactInfo = await contactResolver.resolveContact(identifier);
+        
+        // If we got a real contact name (not just formatted phone), show both
+        if (contactInfo.displayName !== identifier && 
+            !contactInfo.displayName.match(/^\+?\d/) && 
+            !contactInfo.displayName.includes('@') &&
+            contactInfo.displayName !== conv.displayName) {
+          displayText = `${contactInfo.displayName} ${chalk.gray(`(${identifier})`)}`;
+        } else if (conv.displayName === identifier) {
+          // If the conversation display name is just the raw identifier, use the formatted version
+          displayText = contactInfo.displayName;
+        }
+      } catch (error) {
+        // Fallback to original display name
+      }
+    }
+    
+    enhancedChoices.push({
+      name: `${displayText} ${conv.isGroup ? chalk.blue('(group)') : ''} - ${conv.messageCount} messages`,
+      value: conv.chatIdentifier,
+    });
+  }
+  
+  return enhancedChoices;
+}
+
+/**
+ * Add contact by searching through the contact cache
+ */
+async function addByContactSearch(configManager: ConfigManager, exporter: MessageExporter) {
+  // Initialize contact cache
+  await exporter.initialize();
+  const contactResolver = new ContactResolver();
+  await contactResolver.initialize();
+  
+  const cacheInfo = contactResolver.getCacheInfo();
+  if (!cacheInfo) {
+    console.log(chalk.yellow('⚠️  No contact cache found.'));
+    console.log(chalk.gray('Please run "npm run cli -- contacts --sync" first to enable contact search.'));
+    return;
+  }
+
+  const { searchTerm } = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'searchTerm',
+      message: 'Enter part of a contact name to search:',
+      validate: (input) => {
+        if (!input.trim()) return 'Please enter a search term.';
+        if (input.trim().length < 2) return 'Please enter at least 2 characters.';
+        return true;
+      },
+    },
+  ]);
+
+  console.log(chalk.gray(`🔍 Searching ${cacheInfo.contacts} contacts for "${searchTerm}"...`));
+  
+  // Search through the contact cache
+  const matches = await searchContactCache(contactResolver, searchTerm.trim());
+  
+  if (matches.length === 0) {
+    console.log(chalk.yellow(`❌ No contacts found matching "${searchTerm}"`));
+    console.log(chalk.gray('Try a different search term or use manual entry.'));
+    return;
+  }
+
+  console.log(chalk.green(`✅ Found ${matches.length} matching contact(s):`));
+  
+  const { selectedContact } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'selectedContact',
+      message: 'Select a contact to add:',
+      choices: [
+        ...matches.map((match, index) => ({
+          name: `${match.name} ${chalk.gray(`(${match.identifier})`)}`,
+          value: match.identifier,
+        })),
+        { name: chalk.gray('🔙 Cancel'), value: null },
+      ],
+    },
+  ]);
+
+  if (!selectedContact) {
+    console.log(chalk.gray('Cancelled.'));
+    return;
+  }
+
+  // Add the selected contact
+  await addConversationByIdentifier(configManager, exporter, selectedContact);
+}
+
+/**
+ * Search through contact cache for matches
+ */
+async function searchContactCache(contactResolver: ContactResolver, searchTerm: string): Promise<{name: string, identifier: string}[]> {
+  const matches = contactResolver.searchContactsByName(searchTerm);
+  const results: {name: string, identifier: string}[] = [];
+
+  for (const match of matches) {
+    // Add all phone numbers for this contact
+    for (const phone of match.phones) {
+      results.push({
+        name: match.name,
+        identifier: phone,
+      });
+    }
+    
+    // Add all email addresses for this contact
+    for (const email of match.emails) {
+      results.push({
+        name: match.name,
+        identifier: email,
+      });
+    }
+  }
+
+  return results;
 }

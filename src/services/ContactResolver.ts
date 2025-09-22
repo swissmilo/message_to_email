@@ -144,6 +144,13 @@ export class ContactResolver {
   }
 
   /**
+   * Search contacts by name
+   */
+  searchContactsByName(searchTerm: string): { name: string; phones: string[]; emails: string[] }[] {
+    return this.globalContactCache.searchContactsByName(searchTerm);
+  }
+
+  /**
    * Format identifier for display when no contact found
    */
   private formatIdentifier(identifier: string): string {

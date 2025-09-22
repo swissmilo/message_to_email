@@ -1,6 +1,6 @@
 # iMessage to Email Sync CLI
 
-A TypeScript CLI tool that extracts iMessage conversations and prepares them for email delivery using the ReagentX/imessage-exporter library.
+A TypeScript CLI tool that extracts iMessage conversations using the ReagentX/imessage-exporter library and prepares them for email delivery. All processing happens locally on your Mac - no data is sent to external servers, and messages are only forwarded to email addresses you configure through your own Gmail account. 
 
 ## Prerequisites
 

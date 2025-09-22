@@ -306,7 +306,7 @@ Example:
 
 ### `contacts-cache.json`
 This file is automatically created when you run `contacts --sync`:
-- **Cached Contacts**: All contacts from your macOS Contacts app (~800 contacts)
+- **Cached Contacts**: All contacts from your macOS Contacts app
 - **Indexed Lookups**: Pre-indexed phone numbers and emails for 0ms lookups
 - **30-Day Validity**: Automatically considered stale after 30 days
 - **Large File**: Contains all contact data, indexed for fast searching

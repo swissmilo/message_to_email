@@ -238,6 +238,11 @@ class SyncService {
       // Export recent messages for this specific conversation
       // Remove date filters - imessage-exporter has issues with them, filter locally instead
       const tempDir = `temp_sync_${Date.now()}`;
+      
+      // Create temp directory before export
+      const fs = await import('fs/promises');
+      await fs.mkdir(tempDir, { recursive: true });
+      
       const exportOptions = {
         format: 'html' as const,
         outputDir: tempDir,
@@ -249,11 +254,16 @@ class SyncService {
       const exportResult = await this.exporter.exportMessages(exportOptions);
       if (!exportResult.success) {
         this.log('error', `❌ Export failed for ${conv.displayName}: ${exportResult.error}`);
+        // Clean up temp directory on export failure
+        try {
+          await fs.rm(tempDir, { recursive: true, force: true });
+        } catch (cleanupError) {
+          // Ignore cleanup errors
+        }
         return 0;
       }
 
       // Parse the exported messages
-      const fs = await import('fs/promises');
       const path = await import('path');
       
       try {

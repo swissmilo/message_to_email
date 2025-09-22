@@ -79,16 +79,56 @@ cp env.example .env
 # Edit .env file with your details:
 GMAIL_USER=youremail@gmail.com
 GMAIL_APP_PASSWORD=your-16-character-app-password
-EMAIL_TO=recipient@gmail.com
-EMAIL_FROM_NAME=iMessage Sync
 ```
 
-#### Test Setup
+#### Test Email Setup
 ```bash
+npm run cli -- email --config
 npm run cli email --test
 ```
 
-## Usage
+### 3: macOS Contacts Setup (Optional but Recommended)
+```bash
+# Download all contacts for name resolution (Apple Script takes ~5 minutes per 1,000 contacts, one-time setup)
+npm run cli -- contacts --sync
+
+# Check contact cache status
+npm run cli -- contacts --cache-info
+```
+
+> **Note**: Contact sync is optional but highly recommended. Without it, you'll see phone numbers like "+14155551234" instead of names like "Sarah Johnson" in your emails.
+
+### 4: Add Conversations to Track
+```bash
+# Interactive menu to add conversations
+npm run cli -- sync
+
+# Add yourself for testing (replace with your iPhone number)
+npm run cli -- sync --add "+14155555555"  # Your iPhone number
+```
+
+**Contact Name Lookup**: When adding numbers, the system automatically looks up contact names from your macOS Contacts app and suggests them.
+
+### 5: Install & Start Background Service
+```bash
+# Install as system service (auto-starts on boot)
+npm run cli -- install
+
+# Check service status
+npm run cli -- install --status
+
+# View live logs
+npm run cli -- install --logs
+```
+
+### 6: Test It! 
+1. **Send yourself an iMessage** from your own phone to your iPhone number
+2. **Wait ~1 minute** (service checks every minute)
+3. **Check your Gmail inbox** for the forwarded message
+
+**Example Email Subject**: `iMessage: You (+14155555555)` or `iMessage: John Smith (+14155555555)`
+
+## Usage Reference
 
 ### List Recent Conversations
 
@@ -194,21 +234,6 @@ npm run cli -- contacts --remove "+14155551234"
 npm run cli -- contacts
 ```
 
-**🚀 Fast Contact Caching System:**
-- **One-Time Sync**: Run `--sync` to download all ~800 contacts in ~5 minutes
-- **Lightning-Fast Lookups**: Contact resolution takes 0ms after caching
-- **30-Day Cache**: Cache stays fresh for 30 days, no daily re-downloading
-- **Graceful Fallbacks**: Works without cache using formatted phone numbers
-- **Real Names**: "Lydia" instead of "+1 (917) 123-4567"
-
-**Contact Resolution Features:**
-- **macOS Contacts Integration**: Automatically lookup names from your Contacts app  
-- **Manual Mappings**: Map phone numbers/emails to display names (as backup)
-- **Auto +1 Country Code**: Automatically adds +1 to 10-digit US/Canada numbers
-- **Smart Phone Formatting**: Pretty formatting like "+1 (415) 555-5555"
-- **Input Normalization**: CLI auto-formats phone input (e.g., "4155551234" → "+14155551234")
-- **Batch Processing**: Downloads contacts in batches of 10 for reliability (1000 will take about 10min)
-
 ### Development
 
 ```bash
@@ -218,36 +243,6 @@ npm run dev -- list
 # Build the project
 npm run build
 ```
-
-## Features Implemented
-
-- ✅ TypeScript CLI with Commander.js
-- ✅ Integration with imessage-exporter Rust binary
-- ✅ Permission checking for Full Disk Access
-- ✅ Installation verification for dependencies
-- ✅ **Real conversation parsing from Messages database**
-- ✅ List recent message threads with formatting
-- ✅ Filter individual vs group conversations
-- ✅ Human-readable date formatting
-- ✅ Phone number formatting for display
-- ✅ Conversation sorting by last message date
-- ✅ Message count and participant detection
-- ✅ **Interactive sync command for conversation tracking**
-- ✅ **Configuration management with JSON persistence**
-- ✅ **Automatic background service with cron scheduling**
-- ✅ **Command-line options for quick operations**
-- ✅ **Gmail integration with Nodemailer**
-- ✅ **Email formatting with proper threading headers**
-- ✅ **Environment variable configuration**
-- ✅ **Email testing and validation**
-- ✅ **Real message-to-email conversion**
-- ✅ **Contact name resolution with manual mappings**
-- ✅ **macOS Contacts app integration with fast caching**
-- ✅ **Lightning-fast contact lookups (0ms after cache)**
-- ✅ **Smart email subjects with phone numbers for filtering**
-- ✅ **Auto +1 country code addition for US/Canada numbers**
-- ✅ **Batch contact downloading for reliability**
-- ✅ **Historical message filtering for new contacts**
 
 ## Project Structure
 
@@ -320,15 +315,13 @@ This file is automatically created when you run `contacts --sync`:
 Environment variables for Gmail authentication (create from `env.example`):
 - `GMAIL_USER`: Your Gmail email address
 - `GMAIL_APP_PASSWORD`: 16-character app password from Google
-- `EMAIL_TO`: Recipient email address
-- `EMAIL_FROM_NAME`: Display name for sent emails
 
 ## Email Subject Format
 
 The app creates smart email subjects that always include phone numbers for easy filtering:
 
 **When contact name is available:**
-- `iMessage: Sarah (+14156300688)`
+- `iMessage: Sarah (+14156300622)`
 - `Re: iMessage: John Smith (+14155551234)`
 
 **When no contact name found:**
@@ -339,107 +332,6 @@ The app creates smart email subjects that always include phone numbers for easy 
 - Set up filters based on phone numbers: `(+14156305555)`
 - Easily identify conversation participants
 - Professional appearance with contact names
-
-## Current Status
-
-### 🎉 Fully Functional iMessage to Email Sync!
-
-The system is now production-ready with:
-
-1. **Real-Time Message Sync** - Background service monitors and forwards new messages
-2. **Lightning-Fast Contact Resolution** - 0ms lookups after initial 5-minute setup
-3. **Smart Historical Filtering** - Only emails new messages when contacts are added
-4. **Professional Email Threading** - Proper Gmail conversation threading
-5. **Robust Permission Handling** - Clear setup instructions and error messages
-
-## 🚀 Quickstart Guide
-
-Get up and running in 5 minutes with automatic iMessage-to-email forwarding:
-
-### Step 1: Initial Setup
-```bash
-# 1. Install dependencies
-npm install && npm run build
-
-# 2. Configure Gmail credentials
-cp env.example .env
-# Edit .env with your Gmail credentials (see Gmail Configuration section above)
-
-# 3. Test Gmail connection
-npm run cli -- email --test
-```
-
-### Step 2: Contact Setup (Optional but Recommended)
-```bash
-# Download all contacts for name resolution (takes ~5 minutes, one-time setup)
-npm run cli -- contacts --sync
-
-# Check contact cache status
-npm run cli -- contacts --cache-info
-```
-
-> **Note**: Contact sync is optional but highly recommended. Without it, you'll see phone numbers like "+14155551234" instead of names like "Sarah Johnson" in your emails.
-
-### Step 3: Add Conversations to Track
-```bash
-# Interactive menu to add conversations
-npm run cli -- sync
-
-# Or add directly by phone number (will auto-resolve contact name)
-npm run cli -- sync --add "+14155551234"
-
-# Add yourself for testing (replace with your iPhone number)
-npm run cli -- sync --add "+14155555555"  # Your iPhone number
-```
-
-**Contact Name Lookup**: When adding numbers, the system automatically looks up contact names from your macOS Contacts app and suggests them.
-
-### Step 4: Install & Start Background Service
-```bash
-# Install as system service (auto-starts on boot)
-npm run cli -- install
-
-# Check service status
-npm run cli -- install --status
-
-# View live logs
-npm run cli -- install --logs
-```
-
-### Step 5: Test It! 
-1. **Send yourself an iMessage** from another device to your iPhone number
-2. **Wait ~1 minute** (service checks every minute)
-3. **Check your Gmail inbox** for the forwarded message
-
-**Example Email Subject**: `iMessage: You (+14155555555)` or `iMessage: John Smith (+14155555555)`
-
-### Step 6: Add More Contacts
-```bash
-# Add contacts by searching names from your address book
-npm run cli -- sync  # → "Search by contact name" → "Sarah" → Select contact
-
-# Or add directly
-npm run cli -- sync --add "+19175551234"  # Friend's number
-npm run cli -- sync --add "mom@email.com"  # Family email
-```
-
-🎯 **Result**: All new iMessages from tracked contacts automatically appear in your Gmail inbox with proper threading and contact names!
-
-### Service Management
-
-```bash
-# One-time setup (runs on system startup)
-npm run cli -- install
-
-# Check if service is running
-npm run cli -- install --status
-
-# View real-time logs
-npm run cli -- install --logs
-
-# Restart service (after code updates)
-npm run cli -- install --restart
-```
 
 ## Troubleshooting
 

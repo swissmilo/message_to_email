@@ -170,6 +170,11 @@ class SyncService {
       this.log('info', `🔄 Starting sync for ${tracked.length} conversation(s)...`);
       
       let totalNewMessages = 0;
+      const conversationUpdates: Array<{
+        chatIdentifier: string;
+        lastSyncDate: Date;
+        lastMessageId?: string;
+      }> = [];
       
       for (const conv of tracked) {
         try {
@@ -178,10 +183,12 @@ class SyncService {
           
           if (newMessages > 0) {
             this.log('info', `📨 ${conv.displayName}: ${newMessages} new message(s)`);
-            // Update last sync date to the end of our export window (with buffer)
-            // This ensures we don't miss messages that arrived during processing
+            // Collect update for batch processing
             const syncTimestamp = new Date(Date.now() - 5000); // 5 second buffer
-            await this.configManager.updateLastSyncWithTimestamp(conv.chatIdentifier, syncTimestamp);
+            conversationUpdates.push({
+              chatIdentifier: conv.chatIdentifier,
+              lastSyncDate: syncTimestamp,
+            });
           } else if (this.verbose) {
             this.log('debug', `📨 ${conv.displayName}: no new messages`);
           }
@@ -198,9 +205,12 @@ class SyncService {
         this.log('debug', `✅ Sync completed: no new messages in ${duration}ms`);
       }
       
-      // Update global sync timestamp
-      await this.configManager.updateSyncSettings({
-        lastGlobalSync: new Date(),
+      // Batch update all changes at once to prevent overwriting external modifications
+      await this.configManager.batchUpdateSync({
+        conversationUpdates: conversationUpdates.length > 0 ? conversationUpdates : undefined,
+        globalSettings: {
+          lastGlobalSync: new Date(),
+        },
       });
       
     } catch (error) {
@@ -214,20 +224,24 @@ class SyncService {
     try {
       // Use a wider time window to ensure we don't miss recent messages
       // imessage-exporter seems to have issues with very recent timestamps
-      const startDate = conv.lastSyncDate || new Date(Date.now() - 24 * 60 * 60 * 1000);
+      let startDate = conv.lastSyncDate || new Date(Date.now() - 24 * 60 * 60 * 1000);
+      
+      // Add a 2-minute buffer to account for timing issues with imessage-exporter
+      if (startDate) {
+        startDate = new Date(startDate.getTime() - 2 * 60 * 1000); // 2 minutes earlier
+      }
       
       this.log('debug', `🔍 Syncing ${conv.displayName}:`);
       this.log('debug', `   Last sync: ${conv.lastSyncDate ? conv.lastSyncDate.toISOString() : 'Never'}`);
-      this.log('debug', `   Export range: ${startDate.toISOString()} to NOW (no end limit)`);
+      this.log('debug', `   Will filter locally for messages newer than: ${conv.lastSyncDate ? conv.lastSyncDate.toISOString() : 'Never'}`);
       
       // Export recent messages for this specific conversation
-      // Don't use endDate to avoid missing very recent messages
+      // Remove date filters - imessage-exporter has issues with them, filter locally instead
       const tempDir = `temp_sync_${Date.now()}`;
       const exportOptions = {
         format: 'html' as const,
         outputDir: tempDir,
-        startDate,
-        // Remove endDate to get all messages up to now
+        // Don't use startDate/endDate - causes issues with imessage-exporter
         noAttachments: true,
         contacts: conv.participants, // Filter to this conversation only
       };
@@ -254,7 +268,6 @@ class SyncService {
           
           for (const [chatId, messages] of parsedData.conversations) {
             if (messages.length > 0) {
-              this.log('debug', `   Found ${messages.length} total message(s) in export`);
               
               // Filter messages newer than last sync
               const newMessages = messages.filter(msg => {
@@ -344,7 +357,7 @@ class SyncService {
     
     if (this.cronJob) {
       this.cronJob.stop();
-      this.cronJob.destroy();
+      // Note: node-cron doesn't have a destroy() method, stop() is sufficient
     }
     
     this.log('info', '👋 Service stopped');

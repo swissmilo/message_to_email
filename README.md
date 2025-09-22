@@ -40,11 +40,25 @@ npm run build
 
 This tool requires Full Disk Access to read your Messages database:
 
+#### For Interactive Use (Terminal)
 1. Open **System Settings**
 2. Go to **Privacy & Security** → **Full Disk Access**
 3. Click the **+** button
 4. Add your terminal application (Terminal.app, iTerm2, etc.)
 5. **Restart your terminal**
+
+#### For Background Service (Required for Auto-Startup)
+When using the system service (`npm run cli -- install`), Node.js itself needs Full Disk Access:
+
+1. Open **System Settings**
+2. Go to **Privacy & Security** → **Full Disk Access**
+3. Click the **+** button
+4. Navigate to and add your Node.js executable:
+   - **Homebrew Node.js**: `/opt/homebrew/bin/node`
+   - **System Node.js**: `/usr/local/bin/node`
+   - **Find your path**: Run `which node` in terminal to locate
+
+> **Note**: You need BOTH terminal and Node.js permissions for full functionality. Without Node.js permission, the background service will fail with "Full Disk Access required" errors.
 
 ### 2. Gmail Configuration (For Email Sync)
 
@@ -338,14 +352,78 @@ The system is now production-ready with:
 4. **Professional Email Threading** - Proper Gmail conversation threading
 5. **Robust Permission Handling** - Clear setup instructions and error messages
 
-### Quick Start Guide
+## 🚀 Quickstart Guide
 
-1. **Setup**: Grant Full Disk Access, install dependencies, configure Gmail
-2. **Sync Contacts**: `npm run cli -- contacts --sync` (one-time, ~5 minutes)
-3. **Add Conversations**: `npm run cli -- sync --add "+15551234567"`
-4. **Install Service**: `npm run cli -- install` (auto-start on boot)
+Get up and running in 5 minutes with automatic iMessage-to-email forwarding:
 
-🎯 **Result**: New iMessages automatically appear in your Gmail inbox with proper contact names!
+### Step 1: Initial Setup
+```bash
+# 1. Install dependencies
+npm install && npm run build
+
+# 2. Configure Gmail credentials
+cp env.example .env
+# Edit .env with your Gmail credentials (see Gmail Configuration section above)
+
+# 3. Test Gmail connection
+npm run cli -- email --test
+```
+
+### Step 2: Contact Setup (Optional but Recommended)
+```bash
+# Download all contacts for name resolution (takes ~5 minutes, one-time setup)
+npm run cli -- contacts --sync
+
+# Check contact cache status
+npm run cli -- contacts --cache-info
+```
+
+> **Note**: Contact sync is optional but highly recommended. Without it, you'll see phone numbers like "+14155551234" instead of names like "Sarah Johnson" in your emails.
+
+### Step 3: Add Conversations to Track
+```bash
+# Interactive menu to add conversations
+npm run cli -- sync
+
+# Or add directly by phone number (will auto-resolve contact name)
+npm run cli -- sync --add "+14155551234"
+
+# Add yourself for testing (replace with your iPhone number)
+npm run cli -- sync --add "+14155555555"  # Your iPhone number
+```
+
+**Contact Name Lookup**: When adding numbers, the system automatically looks up contact names from your macOS Contacts app and suggests them.
+
+### Step 4: Install & Start Background Service
+```bash
+# Install as system service (auto-starts on boot)
+npm run cli -- install
+
+# Check service status
+npm run cli -- install --status
+
+# View live logs
+npm run cli -- install --logs
+```
+
+### Step 5: Test It! 
+1. **Send yourself an iMessage** from another device to your iPhone number
+2. **Wait ~1 minute** (service checks every minute)
+3. **Check your Gmail inbox** for the forwarded message
+
+**Example Email Subject**: `iMessage: You (+14155555555)` or `iMessage: John Smith (+14155555555)`
+
+### Step 6: Add More Contacts
+```bash
+# Add contacts by searching names from your address book
+npm run cli -- sync  # → "Search by contact name" → "Sarah" → Select contact
+
+# Or add directly
+npm run cli -- sync --add "+19175551234"  # Friend's number
+npm run cli -- sync --add "mom@email.com"  # Family email
+```
+
+🎯 **Result**: All new iMessages from tracked contacts automatically appear in your Gmail inbox with proper threading and contact names!
 
 ### Service Management
 
@@ -367,15 +445,42 @@ npm run cli -- install --restart
 
 ### "Permission Denied" Error
 
-If you see a permission error, make sure you've granted Full Disk Access to your terminal application and restarted it.
+If you see a permission error:
+1. Grant Full Disk Access to your terminal application and restart it
+2. For background service: Grant Full Disk Access to Node.js executable (see setup instructions above)
+
+### "Full Disk Access required" in Service Logs
+
+If the background service fails with Full Disk Access errors:
+1. Find your Node.js path: `which node`
+2. Add that path to **Privacy & Security** → **Full Disk Access**
+3. Restart the service: `npm run cli -- install --restart`
 
 ### "imessage-exporter not found" Error
 
-Make sure imessage-exporter is installed and available in your PATH. You can verify installation with:
+Make sure imessage-exporter is installed and available in your PATH:
 
 ```bash
+# Verify installation
 imessage-exporter --version
+
+# Install if missing
+brew install imessage-exporter
 ```
+
+### Service Not Starting
+
+If `npm run cli -- install --status` shows the service isn't running:
+1. Check that auto-sync is enabled: `npm run cli -- sync --status`
+2. Ensure you have tracked conversations: `npm run cli -- sync --status`
+3. Check logs for errors: `npm run cli -- install --logs`
+
+### Contact Names Not Showing
+
+If you see phone numbers instead of names in emails:
+1. Run contact sync: `npm run cli -- contacts --sync`
+2. Check cache status: `npm run cli -- contacts --cache-info`
+3. Test lookup: `npm run cli -- contacts --test "+14155551234"`
 
 ## License
 

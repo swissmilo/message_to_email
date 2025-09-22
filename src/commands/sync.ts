@@ -5,6 +5,13 @@ import ora from 'ora';
 import { MessageExporter } from '../services/MessageExporter';
 import { ConfigManager } from '../services/ConfigManager';
 import { ContactResolver } from '../services/ContactResolver';
+
+/**
+ * Normalize phone number using ConfigManager's method
+ */
+function normalizePhoneNumber(configManager: ConfigManager, identifier: string): string {
+  return configManager.normalizePhoneNumber(identifier);
+}
 import { checkFullDiskAccess, displayPermissionInstructions, checkImessageExporterInstalled, displayInstallationInstructions } from '../utils/permissions';
 import type { Conversation } from '../types';
 import type { TrackedConversation } from '../types/config';
@@ -165,11 +172,16 @@ async function addFromRecentConversations(configManager: ConfigManager, exporter
     
     const conversations = await exporter.listConversations();
     const tracked = await configManager.getTrackedConversations();
-    const trackedIds = new Set(tracked.map(t => t.chatIdentifier));
     
-    // Filter out already tracked conversations and limit to 10
+    // Create a set of normalized tracked identifiers for better matching
+    const trackedIds = new Set(tracked.map(t => normalizePhoneNumber(configManager, t.chatIdentifier)));
+    
+    // Filter out already tracked conversations (using normalized comparison) and limit to 10
     const available = conversations
-      .filter(conv => !trackedIds.has(conv.chatIdentifier))
+      .filter(conv => {
+        const normalizedConvId = normalizePhoneNumber(configManager, conv.chatIdentifier);
+        return !trackedIds.has(normalizedConvId);
+      })
       .slice(0, 10);
     
     spinner.stop();
@@ -266,10 +278,13 @@ async function addManualConversation(configManager: ConfigManager, exporter: Mes
     },
   ]);
 
+  // Normalize phone number for consistent storage
+  const normalizedIdentifier = normalizePhoneNumber(configManager, identifier.trim());
+  
   await configManager.addTrackedConversation({
-    chatIdentifier: identifier.trim(),
+    chatIdentifier: normalizedIdentifier,
     displayName: displayName.trim() || suggestedName,
-    participants: [identifier.trim()],
+    participants: [normalizedIdentifier],
     isGroup: false,
   });
 
@@ -400,10 +415,13 @@ async function addConversationByIdentifier(configManager: ConfigManager, exporte
     console.log(chalk.gray(`📇 No contact found, using: ${identifier}`));
   }
 
+  // Normalize phone number for consistent storage
+  const normalizedIdentifier = normalizePhoneNumber(configManager, identifier);
+  
   await configManager.addTrackedConversation({
-    chatIdentifier: identifier,
+    chatIdentifier: normalizedIdentifier,
     displayName,
-    participants: [identifier],
+    participants: [normalizedIdentifier],
     isGroup: false,
   });
   

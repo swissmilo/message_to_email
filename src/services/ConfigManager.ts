@@ -76,21 +76,34 @@ export class ConfigManager {
   async addTrackedConversation(conversation: Omit<TrackedConversation, 'addedDate'>): Promise<void> {
     const config = await this.loadConfig();
     
-    // Check if already tracking this conversation
+    // Normalize phone numbers to ensure consistency with imessage-exporter
+    const normalizedChatIdentifier = this.normalizePhoneNumber(conversation.chatIdentifier);
+    const normalizedParticipants = conversation.participants.map(p => this.normalizePhoneNumber(p));
+    
+    // Check if already tracking this conversation (using normalized identifiers)
     const existingIndex = config.sync.trackedConversations.findIndex(
-      tracked => tracked.chatIdentifier === conversation.chatIdentifier
+      tracked => {
+        const normalizedTrackedId = this.normalizePhoneNumber(tracked.chatIdentifier);
+        return normalizedTrackedId === normalizedChatIdentifier;
+      }
     );
 
     const now = new Date();
     const trackedConversation: TrackedConversation = {
       ...conversation,
+      chatIdentifier: normalizedChatIdentifier,
+      participants: normalizedParticipants,
       addedDate: now,
       lastSyncDate: now, // Set to now so we only email new messages going forward
     };
 
     if (existingIndex >= 0) {
-      // Update existing
-      config.sync.trackedConversations[existingIndex] = trackedConversation;
+      // Update existing (preserve addedDate from original)
+      const existing = config.sync.trackedConversations[existingIndex];
+      config.sync.trackedConversations[existingIndex] = {
+        ...trackedConversation,
+        addedDate: existing.addedDate, // Keep original addedDate
+      };
     } else {
       // Add new
       config.sync.trackedConversations.push(trackedConversation);
@@ -206,10 +219,10 @@ export class ConfigManager {
   }
 
   /**
-   * Normalize phone number for consistent matching
+   * Normalize phone number format for consistent storage and matching
    * Handles formats: +14155219639, (415) 521-9639, 415-521-9639, etc.
    */
-  private normalizePhoneNumber(phone: string): string {
+  normalizePhoneNumber(phone: string): string {
     if (phone.includes('@')) {
       return phone; // Email addresses don't need normalization
     }

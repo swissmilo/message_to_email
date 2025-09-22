@@ -286,7 +286,7 @@ export class ConfigManager {
       email: {
         enabled: true,
         fromName: 'iMessage Sync',
-        recipientEmail: undefined, // Will use EMAIL_TO environment variable
+        recipientEmail: '', // Must be configured by user
       },
       export: {
         format: 'html',

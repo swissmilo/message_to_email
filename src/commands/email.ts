@@ -95,9 +95,15 @@ async function configureEmailSettings(configManager: ConfigManager) {
     {
       type: 'input',
       name: 'recipientEmail',
-      message: 'Recipient email (leave blank to use EMAIL_TO env var):',
+      message: 'Recipient email address:',
       default: config.email.recipientEmail || '',
       when: (answers) => answers.enabled,
+      validate: (input) => {
+        if (!input.trim()) return 'Recipient email is required when email is enabled.';
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(input.trim())) return 'Please enter a valid email address.';
+        return true;
+      },
     },
   ]);
 
@@ -107,7 +113,7 @@ async function configureEmailSettings(configManager: ConfigManager) {
     email: {
       enabled: answers.enabled,
       fromName: answers.fromName || config.email.fromName,
-      recipientEmail: answers.recipientEmail || undefined,
+      recipientEmail: answers.recipientEmail?.trim() || '',
     },
   };
 
@@ -132,10 +138,10 @@ async function testEmailSetup(emailConfig: any) {
     return;
   }
 
-  const recipientEmail = emailConfig.recipientEmail || process.env.EMAIL_TO;
+  const recipientEmail = emailConfig.recipientEmail;
   if (!recipientEmail) {
     console.log(chalk.red('❌ No recipient email configured'));
-    console.log(chalk.gray('Set EMAIL_TO environment variable or configure in settings.'));
+    console.log(chalk.gray('Run "imessage-sync email --config" to configure recipient email.'));
     return;
   }
 
@@ -170,13 +176,12 @@ async function showEmailStatus(configManager: ConfigManager) {
   console.log(chalk.gray('Configuration:'));
   console.log(`  Enabled: ${config.email.enabled ? chalk.green('yes') : chalk.red('no')}`);
   console.log(`  From name: ${config.email.fromName}`);
-  console.log(`  Recipient: ${config.email.recipientEmail || chalk.gray('(using EMAIL_TO env var)')}`);
+  console.log(`  Recipient: ${config.email.recipientEmail || chalk.red('not configured')}`);
   
   console.log();
   console.log(chalk.gray('Environment Variables:'));
   console.log(`  GMAIL_USER: ${process.env.GMAIL_USER ? chalk.green('set') : chalk.red('not set')}`);
   console.log(`  GMAIL_APP_PASSWORD: ${process.env.GMAIL_APP_PASSWORD ? chalk.green('set') : chalk.red('not set')}`);
-  console.log(`  EMAIL_TO: ${process.env.EMAIL_TO ? chalk.green('set') : chalk.red('not set')}`);
   
   if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
     console.log();

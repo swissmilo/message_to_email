@@ -66,9 +66,9 @@ export class GmailService {
       throw new Error('Gmail service not initialized. Call initialize() first.');
     }
 
-    const recipientEmail = this.config.recipientEmail || process.env.EMAIL_TO;
+    const recipientEmail = this.config.recipientEmail;
     if (!recipientEmail) {
-      throw new Error('No recipient email configured. Set EMAIL_TO environment variable or configure in settings.');
+      throw new Error('No recipient email configured. Please configure in email settings.');
     }
 
     const mailOptions = {

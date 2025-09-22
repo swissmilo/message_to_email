@@ -20,7 +20,7 @@ cargo install imessage-exporter
 
 1. Clone the repository:
 ```bash
-git clone [repository-url]
+git clone https://github.com/swissmilo/message_to_email.git
 cd text_to_email
 ```
 
